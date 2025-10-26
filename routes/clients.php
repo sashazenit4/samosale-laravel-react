@@ -9,3 +9,5 @@ Route::get('clients/{id}/statistics', [ClientController::class, 'statistics']);
 Route::get('clients/{id}/referrals', [ClientController::class, 'referrals']);
 Route::post('clients/check/telegram', [ClientController::class, 'checkTelegramId']);
 Route::post('clients/check/phone', [ClientController::class, 'checkPhoneNumber']);
+Route::get('clients/{id}/custom-fields', [ClientController::class, 'getCustomFields']);
+Route::put('clients/{id}/custom-field', [ClientController::class, 'updateCustomField']);

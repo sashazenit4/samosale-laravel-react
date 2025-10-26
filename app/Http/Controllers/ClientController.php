@@ -47,6 +47,10 @@ class ClientController extends Controller
             'name' => 'nullable|string|max:255',
             'referral_code' => 'sometimes|string|max:32|unique:clients,referral_code',
             'referred_by' => 'nullable|integer|exists:clients,user_id',
+            'custom_fields' => 'nullable|array',
+            'custom_fields.*.name' => 'required|string|max:255',
+            'custom_fields.*.value' => 'nullable|string',
+            'custom_fields.*.type' => 'nullable|string|in:text,number,date,email',
         ]);
 
         if ($validator->fails()) {
@@ -132,6 +136,10 @@ class ClientController extends Controller
             'name' => 'sometimes|string|max:255',
             'referral_code' => 'sometimes|string|max:32|unique:clients,referral_code,' . $id . ',user_id',
             'referred_by' => 'nullable|integer|exists:clients,user_id',
+            'custom_fields' => 'nullable|array',
+            'custom_fields.*.name' => 'required|string|max:255',
+            'custom_fields.*.value' => 'nullable|string',
+            'custom_fields.*.type' => 'nullable|string|in:text,number,date,email',
         ]);
 
         if ($validator->fails()) {
@@ -190,8 +198,75 @@ class ClientController extends Controller
     }
 
     /**
-     * Get client statistics.
+     * Get client custom fields.
      */
+    public function getCustomFields(int $id): JsonResponse
+    {
+        $client = $this->clientRepository->findById($id);
+
+        if (!$client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Client not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $client->customFields
+        ]);
+    }
+
+    /**
+     * Update specific custom field for client.
+     */
+    public function updateCustomField(Request $request, int $id): JsonResponse
+    {
+        $client = $this->clientRepository->findById($id);
+
+        if (!$client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Client not found'
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'field_name' => 'required|string|max:255',
+            'field_value' => 'required|string',
+            'field_type' => 'nullable|string|in:text,number,date,email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $data = $validator->validated();
+            $client->setCustomField(
+                $data['field_name'],
+                $data['field_value'],
+                $data['field_type'] ?? 'text'
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Custom field updated successfully',
+                'data' => $client->load('customFields')
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update custom field',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Остальные существующие методы остаются без изменений
     public function statistics(int $id): JsonResponse
     {
         $statistics = $this->clientRepository->getStatistics($id);
@@ -209,9 +284,6 @@ class ClientController extends Controller
         ]);
     }
 
-    /**
-     * Get client referrals.
-     */
     public function referrals(int $id): JsonResponse
     {
         $client = $this->clientRepository->findById($id);
@@ -231,9 +303,6 @@ class ClientController extends Controller
         ]);
     }
 
-    /**
-     * Check if Telegram ID exists.
-     */
     public function checkTelegramId(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -255,9 +324,6 @@ class ClientController extends Controller
         ]);
     }
 
-    /**
-     * Check if phone number exists.
-     */
     public function checkPhoneNumber(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [

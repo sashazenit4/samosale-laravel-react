@@ -1,4 +1,5 @@
 <?php
+// app/Models/Client.php
 
 namespace App\Models;
 
@@ -72,6 +73,14 @@ class Client extends Model
     }
 
     /**
+     * Relationship: Custom fields for this client
+     */
+    public function customFields(): HasMany
+    {
+        return $this->hasMany(CustomClientField::class, 'client_id', 'user_id');
+    }
+
+    /**
      * Relationship: User who referred this client
      */
     public function referrer(): BelongsTo
@@ -85,6 +94,34 @@ class Client extends Model
     public function referrals(): HasMany
     {
         return $this->hasMany(Client::class, 'referred_by', 'user_id');
+    }
+
+    /**
+     * Get custom field value by name
+     */
+    public function getCustomField(string $fieldName): ?string
+    {
+        $field = $this->customFields()->where('field_name', $fieldName)->first();
+        return $field ? $field->field_value : null;
+    }
+
+    /**
+     * Set or update custom field
+     */
+    public function setCustomField(string $fieldName, string $fieldValue, string $fieldType = 'text'): void
+    {
+        $this->customFields()->updateOrCreate(
+            ['field_name' => $fieldName],
+            ['field_value' => $fieldValue, 'field_type' => $fieldType]
+        );
+    }
+
+    /**
+     * Get all custom fields as key-value array
+     */
+    public function getCustomFieldsArray(): array
+    {
+        return $this->customFields->pluck('field_value', 'field_name')->toArray();
     }
 
     /**
