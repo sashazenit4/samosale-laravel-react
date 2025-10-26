@@ -49,8 +49,7 @@ class ClientController extends Controller
             'referred_by' => 'nullable|integer|exists:clients,user_id',
             'custom_fields' => 'nullable|array',
             'custom_fields.*.name' => 'required|string|max:255',
-            'custom_fields.*.value' => 'nullable|string',
-            'custom_fields.*.type' => 'nullable|string|in:text,number,date,email',
+            'custom_fields.*.value' => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -68,10 +67,129 @@ class ClientController extends Controller
                 'message' => 'Client created successfully',
                 'data' => $client
             ], 201);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed for custom fields',
+                'errors' => json_decode($e->getMessage(), true)
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create client',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update the specified client.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $client = $this->clientRepository->findById($id);
+
+        if (!$client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Client not found'
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'phone_number' => 'sometimes|string|max:32|unique:clients,phone_number,' . $id . ',user_id',
+            'name' => 'sometimes|string|max:255',
+            'referral_code' => 'sometimes|string|max:32|unique:clients,referral_code,' . $id . ',user_id',
+            'referred_by' => 'nullable|integer|exists:clients,user_id',
+            'custom_fields' => 'nullable|array',
+            'custom_fields.*.name' => 'required|string|max:255',
+            'custom_fields.*.value' => 'nullable',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $this->clientRepository->update($id, $validator->validated());
+            $updatedClient = $this->clientRepository->findById($id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Client updated successfully',
+                'data' => $updatedClient
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed for custom fields',
+                'errors' => json_decode($e->getMessage(), true)
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update client',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get allowed custom field templates
+     */
+    public function getFieldTemplates(): JsonResponse
+    {
+        try {
+            $templates = $this->clientRepository->getAllowedFieldTemplates();
+
+            return response()->json([
+                'success' => true,
+                'data' => $templates
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch field templates',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Validate custom field value
+     */
+    public function validateField(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'field_name' => 'required|string|max:255',
+            'field_value' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $result = $this->clientRepository->validateFieldValue(
+                $request->field_name,
+                $request->field_value
+            );
+
+            return response()->json([
+                'success' => $result['valid'],
+                'data' => $result
+            ], $result['valid'] ? 200 : 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to validate field',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -115,56 +233,6 @@ class ClientController extends Controller
             'success' => true,
             'data' => $client->load('referrer', 'referrals')
         ]);
-    }
-
-    /**
-     * Update the specified client.
-     */
-    public function update(Request $request, int $id): JsonResponse
-    {
-        $client = $this->clientRepository->findById($id);
-
-        if (!$client) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Client not found'
-            ], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'phone_number' => 'sometimes|string|max:32|unique:clients,phone_number,' . $id . ',user_id',
-            'name' => 'sometimes|string|max:255',
-            'referral_code' => 'sometimes|string|max:32|unique:clients,referral_code,' . $id . ',user_id',
-            'referred_by' => 'nullable|integer|exists:clients,user_id',
-            'custom_fields' => 'nullable|array',
-            'custom_fields.*.name' => 'required|string|max:255',
-            'custom_fields.*.value' => 'nullable|string',
-            'custom_fields.*.type' => 'nullable|string|in:text,number,date,email',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        try {
-            $this->clientRepository->update($id, $validator->validated());
-            $updatedClient = $this->clientRepository->findById($id);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Client updated successfully',
-                'data' => $updatedClient
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update client',
-                'error' => $e->getMessage()
-            ], 500);
-        }
     }
 
     /**

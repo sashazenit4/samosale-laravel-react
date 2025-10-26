@@ -6,9 +6,19 @@ use App\Models\Client;
 use App\Models\CustomClientField;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\CustomFieldValidationService;
+use App\Models\CustomFieldTemplate;
+use Illuminate\Support\Facades\DB;
 
 class ClientRepository
 {
+    protected CustomFieldValidationService $validationService;
+
+    public function __construct(CustomFieldValidationService $validationService)
+    {
+        $this->validationService = $validationService;
+    }
+
     /**
      * Find client by user_id
      */
@@ -42,44 +52,64 @@ class ClientRepository
     }
 
     /**
-     * Create new client
+     * Create new client with validated custom fields
      */
     public function create(array $data): Client
     {
-        // Генерируем реферальный код если не предоставлен
-        if (!isset($data['referral_code'])) {
-            $data['referral_code'] = Client::generateReferralCode();
-        }
+        return DB::transaction(function () use ($data) {
+            // Генерируем реферальный код если не предоставлен
+            if (!isset($data['referral_code'])) {
+                $data['referral_code'] = Client::generateReferralCode();
+            }
 
-        $client = Client::create($data);
+            $customFields = $data['custom_fields'] ?? [];
+            unset($data['custom_fields']);
 
-        // Сохраняем кастомные поля если они есть
-        if (isset($data['custom_fields'])) {
-            $this->saveCustomFields($client, $data['custom_fields']);
-        }
+            // Валидируем кастомные поля
+            $validationResult = $this->validationService->validateFields($customFields);
 
-        return $client->load('customFields', 'referrer', 'referrals');
+            if (!empty($validationResult['errors'])) {
+                throw new \InvalidArgumentException('Invalid custom fields: ' . json_encode($validationResult['errors']));
+            }
+
+            $client = Client::create($data);
+
+            // Сохраняем валидированные кастомные поля
+            $this->saveValidatedCustomFields($client, $validationResult['validated_fields']);
+
+            return $client->load('customFields', 'referrer', 'referrals');
+        });
     }
 
     /**
-     * Update client
+     * Update client with validated custom fields
      */
     public function update(int $userId, array $data): bool
     {
-        $client = Client::find($userId);
+        return DB::transaction(function () use ($userId, $data) {
+            $client = Client::find($userId);
 
-        if (!$client) {
-            return false;
-        }
+            if (!$client) {
+                return false;
+            }
 
-        $result = $client->update($data);
+            $customFields = $data['custom_fields'] ?? [];
+            unset($data['custom_fields']);
 
-        // Обновляем кастомные поля если они есть
-        if (isset($data['custom_fields'])) {
-            $this->saveCustomFields($client, $data['custom_fields']);
-        }
+            // Валидируем кастомные поля
+            $validationResult = $this->validationService->validateFields($customFields);
 
-        return $result;
+            if (!empty($validationResult['errors'])) {
+                throw new \InvalidArgumentException('Invalid custom fields: ' . json_encode($validationResult['errors']));
+            }
+
+            $result = $client->update($data);
+
+            // Сохраняем валидированные кастомные поля
+            $this->saveValidatedCustomFields($client, $validationResult['validated_fields']);
+
+            return $result;
+        });
     }
 
     /**
@@ -269,6 +299,72 @@ class ClientRepository
                 ->limit(10)
                 ->get()
                 ->toArray(),
+        ];
+    }/**
+ * Save validated custom fields
+ */
+    private function saveValidatedCustomFields(Client $client, array $validatedFields): void
+    {
+        foreach ($validatedFields as $field) {
+            $client->setCustomField(
+                $field['name'],
+                $field['value'],
+                $field['type']
+            );
+        }
+    }
+
+    /**
+     * Get allowed custom field templates
+     */
+    public function getAllowedFieldTemplates(): Collection
+    {
+        return CustomFieldTemplate::active()->ordered()->get();
+    }
+
+    /**
+     * Create or update custom field template
+     */
+    public function updateFieldTemplate(array $data): CustomFieldTemplate
+    {
+        return CustomFieldTemplate::updateOrCreate(
+            ['name' => $data['name']],
+            $data
+        );
+    }
+
+    /**
+     * Delete custom field template
+     */
+    public function deleteFieldTemplate(string $name): bool
+    {
+        return CustomFieldTemplate::where('name', $name)->delete() > 0;
+    }
+
+    /**
+     * Validate single custom field value
+     */
+    public function validateFieldValue(string $fieldName, $value): array
+    {
+        $template = CustomFieldTemplate::active()->where('name', $fieldName)->first();
+
+        if (!$template) {
+            return [
+                'valid' => false,
+                'error' => "Field '{$fieldName}' is not allowed",
+            ];
+        }
+
+        if (!$template->isValidValue($value)) {
+            return [
+                'valid' => false,
+                'error' => "Invalid value for field '{$template->label}'",
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'type' => $template->type,
         ];
     }
 }

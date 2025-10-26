@@ -11,3 +11,7 @@ Route::post('clients/check/telegram', [ClientController::class, 'checkTelegramId
 Route::post('clients/check/phone', [ClientController::class, 'checkPhoneNumber']);
 Route::get('clients/{id}/custom-fields', [ClientController::class, 'getCustomFields']);
 Route::put('clients/{id}/custom-field', [ClientController::class, 'updateCustomField']);
+
+// Маршруты для работы с шаблонами полей
+Route::get('clients/field-templates', [ClientController::class, 'getFieldTemplates']);
+Route::post('clients/validate-field', [ClientController::class, 'validateField']);
