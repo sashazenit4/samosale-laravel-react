@@ -2,7 +2,7 @@
 use App\Http\Controllers\ClientController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth:sanctum', 'api'])->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
     // Специфичные маршруты ДО resource (чтобы не перекрывались)
 
     // Маршруты для работы с шаблонами полей
