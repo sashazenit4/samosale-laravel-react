@@ -3,17 +3,28 @@
 namespace App\Repositories;
 
 use App\Models\Client;
+use App\Models\CustomClientField;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Services\CustomFieldValidationService;
+use App\Models\CustomFieldTemplate;
+use Illuminate\Support\Facades\DB;
 
 class ClientRepository
 {
+    protected CustomFieldValidationService $validationService;
+
+    public function __construct(CustomFieldValidationService $validationService)
+    {
+        $this->validationService = $validationService;
+    }
+
     /**
      * Find client by user_id
      */
     public function findById(int $userId): ?Client
     {
-        return Client::find($userId);
+        return Client::with('customFields', 'referrer', 'referrals')->find($userId);
     }
 
     /**
@@ -21,7 +32,7 @@ class ClientRepository
      */
     public function findByTelegramId(int $telegramId): ?Client
     {
-        return Client::byTelegramId($telegramId)->first();
+        return Client::with('customFields', 'referrer', 'referrals')->byTelegramId($telegramId)->first();
     }
 
     /**
@@ -29,7 +40,7 @@ class ClientRepository
      */
     public function findByPhoneNumber(string $phoneNumber): ?Client
     {
-        return Client::byPhoneNumber($phoneNumber)->first();
+        return Client::with('customFields', 'referrer', 'referrals')->byPhoneNumber($phoneNumber)->first();
     }
 
     /**
@@ -37,34 +48,68 @@ class ClientRepository
      */
     public function findByReferralCode(string $referralCode): ?Client
     {
-        return Client::byReferralCode($referralCode)->first();
+        return Client::with('customFields', 'referrer', 'referrals')->byReferralCode($referralCode)->first();
     }
 
     /**
-     * Create new client
+     * Create new client with validated custom fields
      */
     public function create(array $data): Client
     {
-        // Генерируем реферальный код если не предоставлен
-        if (!isset($data['referral_code'])) {
-            $data['referral_code'] = Client::generateReferralCode();
-        }
+        return DB::transaction(function () use ($data) {
+            // Генерируем реферальный код если не предоставлен
+            if (!isset($data['referral_code'])) {
+                $data['referral_code'] = Client::generateReferralCode();
+            }
 
-        return Client::create($data);
+            $customFields = $data['custom_fields'] ?? [];
+            unset($data['custom_fields']);
+
+            // Валидируем кастомные поля
+            $validationResult = $this->validationService->validateFields($customFields);
+
+            if (!empty($validationResult['errors'])) {
+                throw new \InvalidArgumentException('Invalid custom fields: ' . json_encode($validationResult['errors']));
+            }
+
+            $client = Client::create($data);
+
+            // Сохраняем валидированные кастомные поля
+            $this->saveValidatedCustomFields($client, $validationResult['validated_fields']);
+
+            return $client->load('customFields', 'referrer', 'referrals');
+        });
     }
 
     /**
-     * Update client
+     * Update client with validated custom fields
      */
     public function update(int $userId, array $data): bool
     {
-        $client = $this->findById($userId);
+        return DB::transaction(function () use ($userId, $data) {
+            $client = Client::find($userId);
 
-        if (!$client) {
-            return false;
-        }
+            if (!$client) {
+                return false;
+            }
 
-        return $client->update($data);
+            $customFields = $data['custom_fields'] ?? [];
+            unset($data['custom_fields']);
+
+            // Валидируем кастомные поля
+            $validationResult = $this->validationService->validateFields($customFields);
+
+            if (!empty($validationResult['errors'])) {
+                throw new \InvalidArgumentException('Invalid custom fields: ' . json_encode($validationResult['errors']));
+            }
+
+            $result = $client->update($data);
+
+            // Сохраняем валидированные кастомные поля
+            $this->saveValidatedCustomFields($client, $validationResult['validated_fields']);
+
+            return $result;
+        });
     }
 
     /**
@@ -86,7 +131,7 @@ class ClientRepository
      */
     public function getAllPaginated(int $perPage = 15): LengthAwarePaginator
     {
-        return Client::with('referrer')
+        return Client::with('customFields', 'referrer')
             ->orderBy('registration_date', 'desc')
             ->paginate($perPage);
     }
@@ -97,7 +142,7 @@ class ClientRepository
     public function getReferrals(int $referrerId): Collection
     {
         return Client::where('referred_by', $referrerId)
-            ->with('referrer')
+            ->with('customFields', 'referrer')
             ->orderBy('registration_date', 'desc')
             ->get();
     }
@@ -133,6 +178,193 @@ class ClientRepository
             'referrals_count' => $client->referrals()->count(),
             'registration_date' => $client->registration_date,
             'has_referrer' => !is_null($client->referred_by),
+            'custom_fields_count' => $client->customFields()->count(),
+        ];
+    }
+
+    /**
+     * Save custom fields for client
+     */
+    private function saveCustomFields(Client $client, array $customFields): void
+    {
+        foreach ($customFields as $field) {
+            if (!empty($field['name']) && isset($field['value'])) {
+                $client->setCustomField(
+                    $field['name'],
+                    $field['value'],
+                    $field['type'] ?? 'text'
+                );
+            }
+        }
+    }
+
+    /**
+     * Get custom fields for client
+     */
+    public function getCustomFields(int $userId): array
+    {
+        $client = $this->findById($userId);
+        return $client ? $client->getCustomFieldsArray() : [];
+    }
+
+    /**
+     * Update specific custom field
+     */
+    public function updateCustomField(int $userId, string $fieldName, string $fieldValue, string $fieldType = 'text'): bool
+    {
+        $client = Client::find($userId);
+
+        if (!$client) {
+            return false;
+        }
+
+        $client->setCustomField($fieldName, $fieldValue, $fieldType);
+        return true;
+    }
+
+    /**
+     * Delete specific custom field
+     */
+    public function deleteCustomField(int $userId, string $fieldName): bool
+    {
+        $client = Client::find($userId);
+
+        if (!$client) {
+            return false;
+        }
+
+        return $client->customFields()->where('field_name', $fieldName)->delete() > 0;
+    }
+
+    /**
+     * Get clients with specific custom field value
+     */
+    public function findByCustomField(string $fieldName, string $fieldValue): Collection
+    {
+        return Client::whereHas('customFields', function ($query) use ($fieldName, $fieldValue) {
+            $query->where('field_name', $fieldName)
+                ->where('field_value', $fieldValue);
+        })->with('customFields', 'referrer')->get();
+    }
+
+    /**
+     * Get clients with custom field containing value (LIKE search)
+     */
+    public function searchByCustomField(string $fieldName, string $searchValue): Collection
+    {
+        return Client::whereHas('customFields', function ($query) use ($fieldName, $searchValue) {
+            $query->where('field_name', $fieldName)
+                ->where('field_value', 'LIKE', "%{$searchValue}%");
+        })->with('customFields', 'referrer')->get();
+    }
+
+    /**
+     * Bulk update custom fields for multiple clients
+     */
+    public function bulkUpdateCustomFields(array $userIds, string $fieldName, string $fieldValue, string $fieldType = 'text'): int
+    {
+        $updated = 0;
+
+        foreach ($userIds as $userId) {
+            if ($this->updateCustomField($userId, $fieldName, $fieldValue, $fieldType)) {
+                $updated++;
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Get all unique custom field names used in the system
+     */
+    public function getUsedCustomFieldNames(): array
+    {
+        return CustomClientField::distinct()
+            ->pluck('field_name')
+            ->toArray();
+    }
+
+    /**
+     * Get statistics for custom field usage
+     */
+    public function getCustomFieldsStatistics(): array
+    {
+        return [
+            'total_custom_fields' => CustomClientField::count(),
+            'unique_field_names' => CustomClientField::distinct('field_name')->count('field_name'),
+            'most_used_fields' => CustomClientField::select('field_name')
+                ->selectRaw('COUNT(*) as usage_count')
+                ->groupBy('field_name')
+                ->orderByDesc('usage_count')
+                ->limit(10)
+                ->get()
+                ->toArray(),
+        ];
+    }/**
+ * Save validated custom fields
+ */
+    private function saveValidatedCustomFields(Client $client, array $validatedFields): void
+    {
+        foreach ($validatedFields as $field) {
+            $client->setCustomField(
+                $field['name'],
+                $field['value'],
+                $field['type']
+            );
+        }
+    }
+
+    /**
+     * Get allowed custom field templates
+     */
+    public function getAllowedFieldTemplates(): Collection
+    {
+        return CustomFieldTemplate::active()->ordered()->get();
+    }
+
+    /**
+     * Create or update custom field template
+     */
+    public function updateFieldTemplate(array $data): CustomFieldTemplate
+    {
+        return CustomFieldTemplate::updateOrCreate(
+            ['name' => $data['name']],
+            $data
+        );
+    }
+
+    /**
+     * Delete custom field template
+     */
+    public function deleteFieldTemplate(string $name): bool
+    {
+        return CustomFieldTemplate::where('name', $name)->delete() > 0;
+    }
+
+    /**
+     * Validate single custom field value
+     */
+    public function validateFieldValue(string $fieldName, $value): array
+    {
+        $template = CustomFieldTemplate::active()->where('name', $fieldName)->first();
+
+        if (!$template) {
+            return [
+                'valid' => false,
+                'error' => "Field '{$fieldName}' is not allowed",
+            ];
+        }
+
+        if (!$template->isValidValue($value)) {
+            return [
+                'valid' => false,
+                'error' => "Invalid value for field '{$template->label}'",
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'type' => $template->type,
         ];
     }
 }
