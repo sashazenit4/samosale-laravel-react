@@ -14,17 +14,20 @@ class TariffRequest extends FormRequest
     public function rules(): array
     {
         $tariffId = $this->route('tariff')?->id;
+        $isUpdate = $this->isMethod('PUT') || $this->isMethod('PATCH');
 
-        return [
-            'program' => ['required', 'string', 'max:255'],
-            'power' => ['required', 'integer'],
-            'price_month' => ['required', 'numeric', 'min:0'],
-            'price_week1' => ['required', 'numeric', 'min:0'],
-            'price_week2' => ['required', 'numeric', 'min:0'],
-            'price_week3' => ['required', 'numeric', 'min:0'],
-            'price_week4' => ['required', 'numeric', 'min:0'],
+        $rules = [
+            'program' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
+            'power' => [$isUpdate ? 'sometimes' : 'required', 'integer', 'in:500,750,1000'],
+            'price_month' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
+            'price_week1' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
+            'price_week2' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
+            'price_week3' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
+            'price_week4' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ];
+
+        return $rules;
     }
 
     public function messages(): array
