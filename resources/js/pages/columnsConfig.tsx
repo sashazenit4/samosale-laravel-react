@@ -1,6 +1,11 @@
 import { Button, Space, Tag } from 'antd';
+import dayjs from 'dayjs';
 
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+
+import utc from 'dayjs/plugin/utc';
+
+dayjs.extend(utc);
 
 export const clientsColumns = (openDrawer: (record: any) => void) => [
     {
@@ -39,7 +44,7 @@ export const clientsColumns = (openDrawer: (record: any) => void) => [
         key: 'birth_date',
         render: (text: string | null) => text || '-',
     },
-    { title: 'Телефон', dataIndex: 'phone', key: 'phone' },
+    { title: 'Телефон', dataIndex: 'phone_number', key: 'phone_number' },
     {
         title: 'Доп. телефон',
         dataIndex: 'additional_phone',
@@ -91,6 +96,10 @@ export const clientsColumns = (openDrawer: (record: any) => void) => [
         title: 'Дата оформления',
         dataIndex: 'registration_date',
         key: 'registration_date',
+        render: (date: any) => {
+            if (!date) return '—';
+            return dayjs.utc(date).format('DD.MM.YYYY');
+        },
     },
     {
         title: 'Курьерская служба',

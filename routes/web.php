@@ -31,4 +31,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
-require __DIR__.'/clients-web.php';
+
+Route::get('/clients', function () {
+    return Inertia::render('Clients', [
+        'clients' => \App\Models\Client::all(),
+    ]);
+})->name('clients.index');

@@ -5,7 +5,7 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Button, ConfigProvider, Input, Space, Table } from 'antd';
 import { FilterIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -82,6 +82,8 @@ export default function Dashboard() {
         (typeof mockClients)[0] | null
     >(null);
 
+    const { clients } = usePage().props as any;
+
     const filteredClients = mockClients.filter(
         (client) =>
             client.last_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -94,6 +96,7 @@ export default function Dashboard() {
     );
 
     const openDrawer = (client?: any) => {
+        console.log(clients);
         setEditingClient(client || null);
         setDrawerVisible(true);
     };
@@ -189,7 +192,7 @@ export default function Dashboard() {
                     </Space>
                     <Table
                         columns={columns}
-                        dataSource={filteredClients}
+                        dataSource={clients}
                         rowKey="id"
                         pagination={{ pageSize: 10 }}
                         scroll={{ x: 'max-content' }}
