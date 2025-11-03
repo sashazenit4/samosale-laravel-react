@@ -146,16 +146,6 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item
-                    name="phone"
-                    label="Телефон"
-                    rules={[
-                        { required: true, message: 'Введите телефон' },
-                        { max: 20, message: 'Максимум 20 символов' },
-                    ]}
-                >
-                    <Input />
-                </Form.Item>
-                <Form.Item
                     name="additional_phone"
                     label="Доп. телефон"
                     rules={[{ max: 20, message: 'Максимум 20 символов' }]}
@@ -262,13 +252,6 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     ]}
                 >
                     <Input />
-                </Form.Item>
-                <Form.Item
-                    name="registration_date"
-                    label="Дата оформления"
-                    rules={[{ type: 'object', message: 'Выберите дату' }]}
-                >
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item
                     name="courier_service"

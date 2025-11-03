@@ -1,14 +1,15 @@
-import { Button, Drawer, Form, Input, Select } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Switch } from 'antd';
 import React from 'react';
 
 interface TariffFormData {
     program: string;
-    power: string;
-    week_1: number;
-    week_2: number;
-    week_3: number;
-    week_4: number;
-    month_1: number;
+    power: number;
+    price_month: number;
+    price_week1: number;
+    price_week2: number;
+    price_week3: number;
+    price_week4: number;
+    is_active: boolean;
 }
 
 interface TariffFormDrawerProps {
@@ -31,12 +32,11 @@ const TariffFormDrawer: React.FC<TariffFormDrawerProps> = ({
     return (
         <Drawer
             title={isEditing ? 'Редактировать тариф' : 'Создать тариф'}
-            width={400}
+            width={480}
             onClose={onClose}
             open={visible}
-            bodyStyle={{ paddingBottom: 80 }}
             footer={
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', padding: '10px 0' }}>
                     <Button onClick={onClose} style={{ marginRight: 8 }}>
                         Отмена
                     </Button>
@@ -49,7 +49,10 @@ const TariffFormDrawer: React.FC<TariffFormDrawerProps> = ({
             <Form
                 form={form}
                 layout="vertical"
-                initialValues={initialValues}
+                initialValues={{
+                    is_active: true,
+                    ...initialValues,
+                }}
                 onFinish={onSubmit}
             >
                 <Form.Item
@@ -57,108 +60,97 @@ const TariffFormDrawer: React.FC<TariffFormDrawerProps> = ({
                     label="Программа"
                     rules={[{ required: true, message: 'Выберите программу' }]}
                 >
-                    <Select
-                        options={[
-                            { value: 'regular', label: 'Обычная' },
-                            { value: 'scooter', label: 'Самокат' },
-                            { value: 'cooper', label: 'Купер' },
-                        ]}
-                    />
-                </Form.Item>
-                <Form.Item
-                    name="power"
-                    label="Мощность"
-                    rules={[
-                        { required: true, message: 'Введите мощность' },
-                        { max: 255, message: 'Максимум 255 символов' },
-                    ]}
-                >
                     <Input />
                 </Form.Item>
+
                 <Form.Item
-                    name="week_1"
-                    label="1 неделя (₽)"
+                    name="power"
+                    label="Мощность (Вт)"
                     rules={[
-                        {
-                            required: true,
-                            message: 'Введите стоимость за 1 неделю',
-                        },
-                        {
-                            type: 'number',
-                            min: 0,
-                            message: 'Стоимость должна быть положительной',
-                        },
+                        { required: true, message: 'Укажите мощность' },
+                        { type: 'number', min: 1, message: 'Мощность > 0' },
                     ]}
                 >
-                    <Input type="number" step="0.01" />
+                    <InputNumber style={{ width: '100%' }} />
                 </Form.Item>
-                <Form.Item
-                    name="week_2"
-                    label="2 неделя (₽)"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Введите стоимость за 2 неделю',
-                        },
-                        {
-                            type: 'number',
-                            min: 0,
-                            message: 'Стоимость должна быть положительной',
-                        },
-                    ]}
-                >
-                    <Input type="number" step="0.01" />
+
+                <Form.Item label="Цены по неделям">
+                    <div
+                        style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: 16,
+                        }}
+                    >
+                        <Form.Item
+                            name="price_week1"
+                            label="1 неделя"
+                            rules={[
+                                { required: true },
+                                { type: 'number', min: 0 },
+                            ]}
+                        >
+                            <InputNumber
+                                addonAfter="₽"
+                                style={{ width: '100%' }}
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            name="price_week2"
+                            label="2 неделя"
+                            rules={[
+                                { required: true },
+                                { type: 'number', min: 0 },
+                            ]}
+                        >
+                            <InputNumber
+                                addonAfter="₽"
+                                style={{ width: '100%' }}
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            name="price_week3"
+                            label="3 неделя"
+                            rules={[
+                                { required: true },
+                                { type: 'number', min: 0 },
+                            ]}
+                        >
+                            <InputNumber
+                                addonAfter="₽"
+                                style={{ width: '100%' }}
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            name="price_week4"
+                            label="4 неделя"
+                            rules={[
+                                { required: true },
+                                { type: 'number', min: 0 },
+                            ]}
+                        >
+                            <InputNumber
+                                addonAfter="₽"
+                                style={{ width: '100%' }}
+                            />
+                        </Form.Item>
+                    </div>
                 </Form.Item>
+
                 <Form.Item
-                    name="week_3"
-                    label="3 неделя (₽)"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Введите стоимость за 3 неделю',
-                        },
-                        {
-                            type: 'number',
-                            min: 0,
-                            message: 'Стоимость должна быть положительной',
-                        },
-                    ]}
+                    name="price_month"
+                    label="1 месяц (оптом)"
+                    rules={[{ required: true }, { type: 'number', min: 0 }]}
                 >
-                    <Input type="number" step="0.01" />
+                    <InputNumber addonAfter="₽" style={{ width: '100%' }} />
                 </Form.Item>
+
                 <Form.Item
-                    name="week_4"
-                    label="4 неделя (₽)"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Введите стоимость за 4 неделю',
-                        },
-                        {
-                            type: 'number',
-                            min: 0,
-                            message: 'Стоимость должна быть положительной',
-                        },
-                    ]}
+                    name="is_active"
+                    valuePropName="checked"
+                    label="Активен"
                 >
-                    <Input type="number" step="0.01" />
-                </Form.Item>
-                <Form.Item
-                    name="month_1"
-                    label="1 месяц (₽)"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Введите стоимость за 1 месяц',
-                        },
-                        {
-                            type: 'number',
-                            min: 0,
-                            message: 'Стоимость должна быть положительной',
-                        },
-                    ]}
-                >
-                    <Input type="number" step="0.01" />
+                    <Switch />
                 </Form.Item>
             </Form>
         </Drawer>

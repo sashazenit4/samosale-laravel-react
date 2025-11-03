@@ -7,90 +7,144 @@ import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
 
-export const clientsColumns = (openDrawer: (record: any) => void) => [
+export const clientsColumns = (
+    openDrawer: (record: any) => void,
+    openConfirmDeleteDrawer: (record: any) => void,
+) => [
     {
         title: '№ договора',
-        dataIndex: 'contract_number',
+        dataIndex: 'custom_fields',
         key: 'contract_number',
         fixed: 'left',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'contract_number')
+                ?.field_value,
     },
     {
         title: 'ИД курьера',
-        dataIndex: 'courier_id',
+        dataIndex: 'custom_fields',
         key: 'courier_id',
         fixed: 'left',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'courier_id')
+                ?.field_value,
     },
     {
         title: 'Фамилия',
-        dataIndex: 'last_name',
+        dataIndex: 'custom_fields',
         key: 'last_name',
         fixed: 'left',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'last_name')
+                ?.field_value,
     },
     {
         title: 'Имя',
-        dataIndex: 'first_name',
+        dataIndex: 'custom_fields',
         key: 'first_name',
         fixed: 'left',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'first_name')
+                ?.field_value,
     },
     {
         title: 'Отчество',
-        dataIndex: 'middle_name',
+        dataIndex: 'custom_fields',
         key: 'middle_name',
-        render: (text: string | null) => text || '-',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'middle_name')
+                ?.field_value || '-',
     },
     {
         title: 'Дата рождения',
-        dataIndex: 'birth_date',
+        dataIndex: 'custom_fields',
         key: 'birth_date',
-        render: (text: string | null) => text || '-',
+        render: (value: any[]) => {
+            const date = (value || []).find(
+                (item) => item.field_name === 'birth_date',
+            )?.field_value;
+            if (!date) return '—';
+            return dayjs.utc(date).format('DD.MM.YYYY');
+        },
     },
     { title: 'Телефон', dataIndex: 'phone_number', key: 'phone_number' },
     {
         title: 'Доп. телефон',
-        dataIndex: 'additional_phone',
+        dataIndex: 'custom_fields',
         key: 'additional_phone',
-        render: (text: string | null) => text || '-',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'additional_phone')
+                ?.field_value || '-',
     },
     {
         title: 'Телефон знакомых',
-        dataIndex: 'relatives_phone',
+        dataIndex: 'custom_fields',
         key: 'relatives_phone',
-        render: (text: string | null) => text || '-',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'relatives_phone')
+                ?.field_value || '-',
     },
     {
         title: 'Паспорт: серия',
-        dataIndex: 'passport_series',
+        dataIndex: 'custom_fields',
         key: 'passport_series',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'passport_series')
+                ?.field_value || '-',
     },
     {
         title: 'Паспорт: номер',
-        dataIndex: 'passport_number',
+        dataIndex: 'custom_fields',
         key: 'passport_number',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'passport_number')
+                ?.field_value || '-',
     },
     {
         title: 'Кем выдан',
-        dataIndex: 'passport_issued_by',
+        dataIndex: 'custom_fields',
         key: 'passport_issued_by',
+        render: (value: any[]) =>
+            (value || []).find(
+                (item) => item.field_name === 'passport_issued_by',
+            )?.field_value || '-',
     },
     {
         title: 'Когда выдан',
-        dataIndex: 'passport_issue_date',
+        dataIndex: 'custom_fields',
         key: 'passport_issue_date',
+        render: (value: any[]) => {
+            const date = (value || []).find(
+                (item) => item.field_name === 'passport_issue_date',
+            )?.field_value;
+            if (!date) return '—';
+            return dayjs.utc(date).format('DD.MM.YYYY');
+        },
     },
     {
         title: 'Код подразделения',
-        dataIndex: 'passport_department_code',
+        dataIndex: 'custom_fields',
         key: 'passport_department_code',
+        render: (value: any[]) =>
+            (value || []).find(
+                (item) => item.field_name === 'passport_department_code',
+            )?.field_value || '-',
     },
     {
         title: 'Адрес прописки',
-        dataIndex: 'legal_address',
+        dataIndex: 'custom_fields',
         key: 'legal_address',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'legal_address')
+                ?.field_value || '-',
     },
     {
         title: 'Адрес проживания',
-        dataIndex: 'actual_address',
+        dataIndex: 'custom_fields',
         key: 'actual_address',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'actual_address')
+                ?.field_value || '-',
     },
     {
         title: 'Дата оформления',
@@ -103,14 +157,21 @@ export const clientsColumns = (openDrawer: (record: any) => void) => [
     },
     {
         title: 'Курьерская служба',
-        dataIndex: 'courier_service',
+        dataIndex: 'custom_fields',
         key: 'courier_service',
+        render: (value: any[]) =>
+            (value || []).find((item) => item.field_name === 'courier_service')
+                ?.field_value || '-',
     },
     {
         title: 'Источник привлечения',
-        dataIndex: 'attraction_source',
+        dataIndex: 'custom_fields',
         key: 'attraction_source',
-        render: (text: string | null) => {
+        render: (value: any) => {
+            const text =
+                (value || []).find(
+                    (item) => item.field_name === 'attraction_source',
+                )?.field_value || '-';
             const options = {
                 реклама_интернет: 'Реклама в интернете',
                 реклама_улица: 'Уличная реклама',
@@ -125,32 +186,27 @@ export const clientsColumns = (openDrawer: (record: any) => void) => [
     },
     {
         title: 'Начало пользования',
-        dataIndex: 'service_start_date',
+        dataIndex: 'custom_fields',
         key: 'service_start_date',
+        render: (value: any[]) => {
+            const date = (value || []).find(
+                (item) => item.field_name === 'service_start_date',
+            )?.field_value;
+            if (!date) return '—';
+            return dayjs.utc(date).format('DD.MM.YYYY');
+        },
     },
     {
         title: 'Конец пользования',
-        dataIndex: 'service_end_date',
+        dataIndex: 'custom_fields',
         key: 'service_end_date',
-        render: (text: string | null) => text || '-',
-    },
-    {
-        title: 'Серийный номер',
-        dataIndex: 'serial_number',
-        key: 'serial_number',
-        render: (text: string | null) => text || '-',
-    },
-    {
-        title: '1-й аккумулятор электровелосипеда',
-        dataIndex: 'battery_1',
-        key: 'battery_1',
-        render: (text: string | null) => text || '-',
-    },
-    {
-        title: '2-й аккумулятор электровелосипеда',
-        dataIndex: 'battery_2',
-        key: 'battery_2',
-        render: (text: string | null) => text || '-',
+        render: (value: any[]) => {
+            const date = (value || []).find(
+                (item) => item.field_name === 'service_end_date',
+            )?.field_value;
+            if (!date) return '—';
+            return dayjs.utc(date).format('DD.MM.YYYY');
+        },
     },
     {
         title: 'Действия',
@@ -167,42 +223,45 @@ export const clientsColumns = (openDrawer: (record: any) => void) => [
                 <Button
                     type="text"
                     icon={<DeleteOutlined />}
-                    onClick={() => console.log(`Удалить клиента ${record.id}`)}
+                    onClick={() => openConfirmDeleteDrawer(record)}
                 />
             </Space>
         ),
     },
 ];
 
-export const bikeColumns = (openDrawer: (record: any) => void) => [
+export const bikeColumns = (
+    openDrawer: (record: any) => void,
+    openDelete: (record: any) => void,
+) => [
     {
         title: 'Номер велосипеда',
         dataIndex: 'bike_number',
         key: 'bike_number',
-        fixed: 'left',
+        fixed: 'left' as const,
+        width: 140,
     },
     {
         title: 'Номер рамы',
         dataIndex: 'frame_number',
         key: 'frame_number',
+        width: 140,
     },
     {
         title: 'Статус',
         dataIndex: 'status',
         key: 'status',
+        width: 120,
         render: (text: string) => {
-            const statusOptions: Record<
-                string,
-                { label: string; color: string }
-            > = {
+            const map: Record<string, { label: string; color: string }> = {
                 disassembly: { label: 'Разбор', color: 'orange' },
                 stolen: { label: 'Угон', color: 'red' },
                 free: { label: 'Свободен', color: 'green' },
                 repair: { label: 'Ремонт', color: 'blue' },
-                rented: { label: 'Аренда', color: 'purple' },
+                renting: { label: 'Аренда', color: 'purple' },
                 reserved: { label: 'Бронь', color: 'cyan' },
             };
-            const { label, color } = statusOptions[text] || {
+            const { label, color } = map[text] || {
                 label: text,
                 color: 'default',
             };
@@ -213,32 +272,32 @@ export const bikeColumns = (openDrawer: (record: any) => void) => [
         title: 'Тип',
         dataIndex: 'type',
         key: 'type',
-        render: (text: string) => {
-            const typeOptions: Record<string, string> = {
-                TRAK: 'ТРАК',
-                MOVER: 'МУВЕР',
-            };
-            return typeOptions[text] || text;
+        width: 100,
+        render: (text: 'TRAK' | 'MOVER') => {
+            const map = { TRAK: 'TRAK', MOVER: 'MOVER' };
+            const color = text === 'TRAK' ? 'blue' : 'green';
+            return <Tag color={color}>{map[text] || text}</Tag>;
         },
     },
     {
         title: 'Действия',
         key: 'actions',
-        fixed: 'right',
-        width: 120,
+        fixed: 'right' as const,
+        width: 100,
         render: (_: any, record: any) => (
             <Space>
                 <Button
+                    size="small"
                     type="text"
                     icon={<EditOutlined />}
                     onClick={() => openDrawer(record)}
                 />
                 <Button
+                    size="small"
+                    danger
                     type="text"
                     icon={<DeleteOutlined />}
-                    onClick={() =>
-                        console.log(`Удалить велосипед ${record.id}`)
-                    }
+                    onClick={() => openDelete(record)}
                 />
             </Space>
         ),
@@ -296,106 +355,99 @@ export const equipmentColumns = (openDrawer: (record: any) => void) => [
     },
 ];
 
-export const tariffColumns = (openDrawer: (record: any) => void) => [
+export const tariffColumns = (
+    openEdit: (record: any) => void,
+    openDelete: (record: any) => void,
+) => [
     {
-        title: 'График платежей',
-        children: [
-            {
-                title: 'Программа',
-                dataIndex: 'program',
-                key: 'program',
-                fixed: 'left',
-                render: (text: string) => {
-                    const programOptions: Record<
-                        string,
-                        { label: string; color: string }
-                    > = {
-                        regular: { label: 'Обычная', color: 'blue' },
-                        scooter: { label: 'Самокат', color: 'green' },
-                        cooper: { label: 'Купер', color: 'purple' },
-                    };
-                    const { label, color } = programOptions[text] || {
-                        label: text,
-                        color: 'default',
-                    };
-                    return <Tag color={color}>{label}</Tag>;
-                },
-            },
-            {
-                title: 'Мощность',
-                dataIndex: 'power',
-                key: 'power',
-            },
-        ],
+        title: 'Программа',
+        dataIndex: 'program',
+        key: 'program',
+        fixed: 'left' as const,
+        width: 120,
+        render: (text: string) => {
+            const map: Record<string, { label: string; color: string }> = {
+                Обычный: { label: 'Обычный', color: 'blue' },
+                Самокат: { label: 'Самокат', color: 'green' },
+                Купер: { label: 'Купер', color: 'purple' },
+            };
+            const { label, color } = map[text] || {
+                label: text,
+                color: 'default',
+            };
+            return <Tag color={color}>{label}</Tag>;
+        },
+    },
+    {
+        title: 'Мощность',
+        dataIndex: 'power',
+        key: 'power',
+        width: 100,
+        render: (v: number) => `${v} Вт`,
     },
     {
         title: 'По неделям',
         children: [
             {
-                title: '1 неделя',
-                dataIndex: 'week_1',
-                key: 'week_1',
-                render: (text: number) => `${text} ₽`,
+                title: '1 нед',
+                dataIndex: 'price_week1',
+                key: 'w1',
+                render: (v: number) => `${v} ₽`,
             },
             {
-                title: '2 неделя',
-                dataIndex: 'week_2',
-                key: 'week_2',
-                render: (text: number) => `${text} ₽`,
+                title: '2 нед',
+                dataIndex: 'price_week2',
+                key: 'w2',
+                render: (v: number) => `${v} ₽`,
             },
             {
-                title: '3 неделя',
-                dataIndex: 'week_3',
-                key: 'week_3',
-                render: (text: number) => `${text} ₽`,
+                title: '3 нед',
+                dataIndex: 'price_week3',
+                key: 'w3',
+                render: (v: number) => `${v} ₽`,
             },
             {
-                title: '4 неделя',
-                dataIndex: 'week_4',
-                key: 'week_4',
-                render: (text: number) => `${text} ₽`,
+                title: '4 нед',
+                dataIndex: 'price_week4',
+                key: 'w4',
+                render: (v: number) => `${v} ₽`,
             },
         ],
     },
     {
-        title: 'Сразу',
-        children: [
-            {
-                title: '1 месяц',
-                dataIndex: 'month_1',
-                key: 'month_1',
-                render: (text: number) => `${text} ₽`,
-            },
-        ],
+        title: 'Месяц',
+        dataIndex: 'price_month',
+        key: 'month',
+        render: (v: number) => <strong>{v} ₽</strong>,
     },
     {
-        title: 'Рассрочка на месяц',
-        children: [
-            {
-                title: '1 месяц, при досрочном расторжении штраф 1000 рублей',
-                dataIndex: 'month_1',
-                key: 'month_1',
-                width: 250,
-                render: (text: number) => `${text} ₽`,
-            },
-        ],
+        title: 'Статус',
+        dataIndex: 'is_active',
+        key: 'active',
+        render: (active: boolean) => (
+            <Tag color={active ? 'green' : 'red'}>
+                {active ? 'Активен' : 'Неактивен'}
+            </Tag>
+        ),
     },
     {
-        title: 'Действия',
         key: 'actions',
-        fixed: 'right',
-        width: 120,
+        fixed: 'right' as const,
+        width: 100,
         render: (_: any, record: any) => (
             <Space>
                 <Button
+                    size="small"
                     type="text"
                     icon={<EditOutlined />}
-                    onClick={() => openDrawer(record)}
+                    onClick={() => openEdit(record)}
                 />
                 <Button
+                    size="small"
+                    danger
                     type="text"
                     icon={<DeleteOutlined />}
-                    onClick={() => console.log(`Удалить тариф ${record.id}`)}
+                    onClick={() => openDelete(record)}
                 />
             </Space>
         ),

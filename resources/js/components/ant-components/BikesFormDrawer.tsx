@@ -1,11 +1,11 @@
-import { Button, Drawer, Form, Input, Select } from 'antd';
+import { Button, Drawer, Form, Input, Select, Tag } from 'antd';
 import React from 'react';
 
 interface BikeFormData {
     bike_number: string;
     frame_number: string;
     status: string;
-    type: string;
+    type: 'TRAK' | 'MOVER';
 }
 
 interface BikeFormDrawerProps {
@@ -25,13 +25,29 @@ const BikeFormDrawer: React.FC<BikeFormDrawerProps> = ({
 }) => {
     const [form] = Form.useForm<BikeFormData>();
 
+    // Сброс формы при открытии
+    React.useEffect(() => {
+        if (visible) {
+            form.resetFields();
+            form.setFieldsValue(initialValues || {});
+        }
+    }, [visible, initialValues, form]);
+
+    const statusOptions = [
+        { value: 'disassembly', label: 'Разбор', color: 'orange' },
+        { value: 'stolen', label: 'Угон', color: 'red' },
+        { value: 'free', label: 'Свободен', color: 'green' },
+        { value: 'repair', label: 'Ремонт', color: 'blue' },
+        { value: 'renting', label: 'Аренда', color: 'purple' },
+        { value: 'reserved', label: 'Бронь', color: 'cyan' },
+    ];
+
     return (
         <Drawer
             title={isEditing ? 'Редактировать велосипед' : 'Создать велосипед'}
-            width={400}
+            width={420}
             onClose={onClose}
             open={visible}
-            bodyStyle={{ paddingBottom: 80 }}
             footer={
                 <div style={{ textAlign: 'right' }}>
                     <Button onClick={onClose} style={{ marginRight: 8 }}>
@@ -43,59 +59,50 @@ const BikeFormDrawer: React.FC<BikeFormDrawerProps> = ({
                 </div>
             }
         >
-            <Form
-                form={form}
-                layout="vertical"
-                initialValues={initialValues}
-                onFinish={onSubmit}
-            >
+            <Form form={form} layout="vertical" onFinish={onSubmit}>
                 <Form.Item
                     name="bike_number"
                     label="Номер велосипеда"
-                    rules={[
-                        { required: true, message: 'Введите номер велосипеда' },
-                        { max: 255, message: 'Максимум 255 символов' },
-                    ]}
+                    rules={[{ required: true, message: 'Обязательно' }]}
                 >
-                    <Input />
+                    <Input placeholder="B-001" />
                 </Form.Item>
+
                 <Form.Item
                     name="frame_number"
                     label="Номер рамы"
-                    rules={[
-                        { required: true, message: 'Введите номер рамы' },
-                        { max: 255, message: 'Максимум 255 символов' },
-                    ]}
+                    rules={[{ required: true, message: 'Обязательно' }]}
                 >
-                    <Input />
+                    <Input placeholder="FR-123456" />
                 </Form.Item>
+
                 <Form.Item
                     name="status"
                     label="Статус"
                     rules={[{ required: true, message: 'Выберите статус' }]}
                 >
-                    <Select
-                        options={[
-                            { value: 'disassembly', label: 'Разбор' },
-                            { value: 'stolen', label: 'Угон' },
-                            { value: 'free', label: 'Свободен' },
-                            { value: 'repair', label: 'Ремонт' },
-                            { value: 'rented', label: 'Аренда' },
-                            { value: 'reserved', label: 'Бронь' },
-                        ]}
-                    />
+                    <Select placeholder="Выберите статус">
+                        {statusOptions.map(({ value, label, color }) => (
+                            <Select.Option key={value} value={value}>
+                                <Tag color={color}>{label}</Tag>
+                            </Select.Option>
+                        ))}
+                    </Select>
                 </Form.Item>
+
                 <Form.Item
                     name="type"
                     label="Тип"
                     rules={[{ required: true, message: 'Выберите тип' }]}
                 >
-                    <Select
-                        options={[
-                            { value: 'TRAK', label: 'ТРАК' },
-                            { value: 'MOVER', label: 'МУВЕР' },
-                        ]}
-                    />
+                    <Select placeholder="Выберите тип">
+                        <Select.Option value="TRAK">
+                            <Tag color="blue">ТРАК</Tag>
+                        </Select.Option>
+                        <Select.Option value="MOVER">
+                            <Tag color="green">МУВЕР</Tag>
+                        </Select.Option>
+                    </Select>
                 </Form.Item>
             </Form>
         </Drawer>

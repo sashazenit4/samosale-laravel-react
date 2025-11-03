@@ -1,103 +1,61 @@
-import ClientFormDrawer, {
-    ClientFormData,
-} from '@/components/ant-components/ClientFormDrawer';
+import ClientFormDrawer from '@/components/ant-components/ClientFormDrawer';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
+import { Inertia } from '@inertiajs/inertia';
 import { Head, usePage } from '@inertiajs/react';
-import { Button, ConfigProvider, Input, Space, Table } from 'antd';
+import {
+    Button,
+    ConfigProvider,
+    Input,
+    message,
+    Modal,
+    Space,
+    Table,
+} from 'antd';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { FilterIcon } from 'lucide-react';
 import { useState } from 'react';
 import { clientsColumns } from './columnsConfig';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Клиенты',
-        href: dashboard().url,
-    },
-];
+dayjs.extend(utc);
 
-const mockClients = [
-    {
-        id: 1,
-        contract_number: 'C001',
-        courier_id: 'CR001',
-        last_name: 'Иванов',
-        first_name: 'Иван',
-        middle_name: 'Иванович',
-        birth_date: '1990-01-01',
-        phone: '+79991234567',
-        additional_phone: '+79997654321',
-        relatives_phone: '+79999876543',
-        passport_series: '1234',
-        passport_number: '567890',
-        passport_issued_by: 'ОВД Москвы',
-        passport_issue_date: '2010-01-01',
-        passport_department_code: '123-456',
-        legal_address: 'Москва, ул. Ленина, д. 1',
-        actual_address: 'Москва, ул. Мира, д. 2',
-        registration_date: '2023-01-01',
-        courier_service: 'Яндекс.Доставка',
-        attraction_source: 'реклама_интернет',
-        service_start_date: '2023-01-01',
-        service_end_date: null,
-        serial_number: 'SN12345',
-        battery_1: 'BAT001',
-        battery_2: 'BAT002',
-    },
-    {
-        id: 2,
-        contract_number: 'C002',
-        courier_id: 'CR002',
-        last_name: 'Петров',
-        first_name: 'Пётр',
-        middle_name: 'Петрович',
-        birth_date: '1992-02-02',
-        phone: '+79991234568',
-        additional_phone: null,
-        relatives_phone: null,
-        passport_series: '5678',
-        passport_number: '123456',
-        passport_issued_by: 'ОВД Санкт-Петербурга',
-        passport_issue_date: '2012-02-02',
-        passport_department_code: '789-012',
-        legal_address: 'Санкт-Петербург, ул. Невская, д. 3',
-        actual_address: 'Санкт-Петербург, ул. Морская, д. 4',
-        registration_date: '2023-02-01',
-        courier_service: 'Достависта',
-        attraction_source: 'социальные_сети',
-        service_start_date: '2023-02-01',
-        service_end_date: null,
-        serial_number: 'SN67890',
-        battery_1: null,
-        battery_2: null,
-    },
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Клиенты', href: dashboard().url },
 ];
 
 export default function Dashboard() {
-    const [search, setSearch] = useState<string>('');
     const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
-    const [editingClient, setEditingClient] = useState<
-        (typeof mockClients)[0] | null
-    >(null);
+    const [editingClient, setEditingClient] = useState<any | null>(null);
+    const [deleteModal, setDeleteModal] = useState<{
+        visible: boolean;
+        client: any | null;
+    }>({
+        visible: false,
+        client: null,
+    });
 
-    const { clients } = usePage().props as any;
+    const { clients, filters } = usePage().props as any;
 
-    const filteredClients = mockClients.filter(
-        (client) =>
-            client.last_name.toLowerCase().includes(search.toLowerCase()) ||
-            client.first_name.toLowerCase().includes(search.toLowerCase()) ||
-            (client.middle_name &&
-                client.middle_name
-                    .toLowerCase()
-                    .includes(search.toLowerCase())) ||
-            client.contract_number.toLowerCase().includes(search.toLowerCase()),
-    );
+    const [search, setSearch] = useState<string>(filters.search || '');
+
+    // Обработчик смены страницы
+    const handleTableChange = (pagination: any) => {
+        Inertia.get(
+            '/clients',
+            { search, page: pagination.current },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const handleSearch = () => {
+        Inertia.get('/clients', { search }, { preserveState: true });
+    };
 
     const openDrawer = (client?: any) => {
-        console.log(clients);
-        setEditingClient(client || null);
+        setEditingClient(prepareClient(client) || null);
         setDrawerVisible(true);
     };
 
@@ -106,30 +64,74 @@ export default function Dashboard() {
         setEditingClient(null);
     };
 
-    const onSubmit = (values: ClientFormData) => {
-        console.log('Form values:', {
-            ...values,
-            // birth_date: values.birth_date
-            //     ? values.birth_date.format('YYYY-MM-DD')
-            //     : null,
-            // passport_issue_date: values.passport_issue_date
-            //     ? values.passport_issue_date.format('YYYY-MM-DD')
-            //     : null,
-            // registration_date: values.registration_date
-            //     ? values.registration_date.format('YYYY-MM-DD')
-            //     : null,
-            // service_start_date: values.service_start_date
-            //     ? values.service_start_date.format('YYYY-MM-DD')
-            //     : null,
-            // service_end_date: values.service_end_date
-            //     ? values.service_end_date.format('YYYY-MM-DD')
-            //     : null,
+    const openConfirmDelete = (client: any) => {
+        setDeleteModal({ visible: true, client });
+    };
+
+    const closeConfirmDelete = () => {
+        setDeleteModal({ visible: false, client: null });
+    };
+
+    const handleDelete = () => {
+        if (!deleteModal.client) return;
+
+        Inertia.delete(`/clients/${deleteModal.client.user_id}`, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                message.success('Клиент удалён');
+                closeConfirmDelete();
+                Inertia.reload({ only: ['clients'] });
+            },
+            onError: () => {
+                message.error('Ошибка при удалении');
+            },
         });
-        // Здесь добавь логику для отправки на сервер (Inertia.post/put)
+    };
+
+    const onSubmit = (values: any) => {
+        if (!editingClient) return;
+
+        const payload: any = {
+            custom_fields: Object.keys(values).map((key: string) => ({
+                name: key,
+                value: values[key],
+            })),
+        };
+
+        Inertia.put(`/clients/${editingClient.user_id}`, payload, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                message.success('Обновлено');
+                setDrawerVisible(false);
+            },
+            onError: (errors) => {
+                console.log('Ошибки:', errors);
+            },
+        });
         closeDrawer();
     };
 
-    const columns = clientsColumns(openDrawer);
+    function prepareClient(editingClient: any) {
+        const data = Object({ user_id: editingClient.user_id });
+        const dates = [
+            'birth_date',
+            'passport_issue_date',
+            'service_start_date',
+            'service_end_date',
+        ];
+        (editingClient.custom_fields || []).forEach((item: any) => {
+            if (dates.includes(item?.field_name)) {
+                data[item?.field_name] = dayjs(item.field_value);
+            } else {
+                data[item?.field_name] = item.field_value;
+            }
+        });
+        return data;
+    }
+
+    const columns = clientsColumns(openDrawer, openConfirmDelete);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -137,23 +139,23 @@ export default function Dashboard() {
             <ConfigProvider
                 theme={{
                     token: {
-                        colorPrimary: 'oklch(0.205 0 0)', // --primary
-                        borderRadius: 6, // --radius (0.625rem ≈ 6px)
+                        colorPrimary: 'oklch(0.205 0 0)',
+                        borderRadius: 6,
                         fontFamily:
                             "'Instrument Sans', ui-sans-serif, system-ui, sans-serif",
-                        colorBgContainer: 'oklch(1 0 0)', // --background
-                        colorText: 'oklch(0.145 0 0)', // --foreground
-                        colorBorder: 'oklch(0.922 0 0)', // --border
+                        colorBgContainer: 'oklch(1 0 0)',
+                        colorText: 'oklch(0.145 0 0)',
+                        colorBorder: 'oklch(0.922 0 0)',
                     },
                     components: {
                         Table: {
-                            headerBg: 'oklch(0.97 0 0)', // --secondary
-                            headerColor: 'oklch(0.145 0 0)', // --foreground
-                            rowHoverBg: 'oklch(0.97 0 0)', // --muted
+                            headerBg: 'oklch(0.97 0 0)',
+                            headerColor: 'oklch(0.145 0 0)',
+                            rowHoverBg: 'oklch(0.97 0 0)',
                         },
                         Input: {
-                            activeBorderColor: 'oklch(0.205 0 0)', // --primary
-                            hoverBorderColor: 'oklch(0.87 0 0)', // --ring
+                            activeBorderColor: 'oklch(0.205 0 0)',
+                            hoverBorderColor: 'oklch(0.87 0 0)',
                         },
                     },
                 }}
@@ -167,77 +169,79 @@ export default function Dashboard() {
                         }}
                         size="large"
                     >
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => openDrawer()}
-                        >
-                            Создать клиента
-                        </Button>
-                        <Space
-                            style={{
-                                width: '100%',
-                            }}
-                            size="large"
-                        >
+                        <div></div>
+                        <Space style={{ width: '100%' }} size="large">
                             <Input
-                                placeholder="Поиск по фамилии, имени, отчеству, номеру договора"
+                                placeholder="Поиск по ФИО, договору..."
                                 prefix={<SearchOutlined />}
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
+                                onPressEnter={handleSearch}
                                 allowClear
+                                style={{ width: 300 }}
                             />
                             <Button icon={<FilterIcon size="18px" />}></Button>
                         </Space>
                     </Space>
+
                     <Table
                         columns={columns}
-                        dataSource={clients}
-                        rowKey="id"
-                        pagination={{ pageSize: 10 }}
+                        dataSource={clients.data || []}
+                        rowKey="user_id"
+                        pagination={{
+                            current: clients.current_page,
+                            pageSize: clients.per_page,
+                            total: clients.total,
+                            showSizeChanger: false,
+                        }}
+                        onChange={handleTableChange}
                         scroll={{ x: 'max-content' }}
                         locale={{ emptyText: 'Нет данных для отображения' }}
+                        bordered={true}
                     />
+
                     <ClientFormDrawer
+                        key={editingClient?.user_id}
                         visible={drawerVisible}
                         onClose={closeDrawer}
                         onSubmit={onSubmit}
-                        initialValues={
-                            editingClient
-                                ? {
-                                      ...editingClient,
-                                      birth_date: editingClient.birth_date
-                                          ? new Date(editingClient.birth_date)
-                                          : null,
-                                      passport_issue_date:
-                                          editingClient.passport_issue_date
-                                              ? new Date(
-                                                    editingClient.passport_issue_date,
-                                                )
-                                              : null,
-                                      registration_date:
-                                          editingClient.registration_date
-                                              ? new Date(
-                                                    editingClient.registration_date,
-                                                )
-                                              : null,
-                                      service_start_date:
-                                          editingClient.service_start_date
-                                              ? new Date(
-                                                    editingClient.service_start_date,
-                                                )
-                                              : null,
-                                      service_end_date:
-                                          editingClient.service_end_date
-                                              ? new Date(
-                                                    editingClient.service_end_date,
-                                                )
-                                              : null,
-                                  }
-                                : undefined
-                        }
+                        initialValues={editingClient}
                         isEditing={!!editingClient}
                     />
+
+                    {/* Модалка подтверждения удаления */}
+                    <Modal
+                        title="Удалить клиента?"
+                        open={deleteModal.visible}
+                        onCancel={closeConfirmDelete}
+                        footer={[
+                            <Button key="cancel" onClick={closeConfirmDelete}>
+                                Отмена
+                            </Button>,
+                            <Button
+                                key="delete"
+                                type="primary"
+                                danger
+                                onClick={handleDelete}
+                            >
+                                Удалить
+                            </Button>,
+                        ]}
+                    >
+                        <p>
+                            Вы уверены, что хотите удалить клиента{' '}
+                            <strong>
+                                {(deleteModal.client?.custom_fields || []).find(
+                                    (f: any) => f.field_name === 'last_name',
+                                )?.field_value || ''}{' '}
+                                {(deleteModal.client?.custom_fields || []).find(
+                                    (f: any) => f.field_name === 'first_name',
+                                )?.field_value || ''}
+                            </strong>
+                            ?
+                        </p>
+                        <p>Это действие нельзя отменить.</p>
+                    </Modal>
                 </div>
             </ConfigProvider>
         </AppLayout>
