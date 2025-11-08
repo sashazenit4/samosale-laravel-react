@@ -1,6 +1,4 @@
 <?php
-// app/Models/Client.php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -166,5 +164,28 @@ class Client extends Model
         } while (self::where('referral_code', $code)->exists());
 
         return $code;
+    }
+
+    public static function booted()
+    {
+        static::created(function ($client) {
+            ReferralInvite::where('telegram_id', $client->telegram_id)->delete();
+        });
+    }
+
+    /**
+     * Отношение к реферальным инвайтам через referral_code
+     */
+    public function referralInvites()
+    {
+        return $this->hasMany(ReferralInvite::class, 'referral_code', 'referral_code');
+    }
+
+    /**
+     * Отношение к реферальным инвайтам как реферер
+     */
+    public function referralInvitesAsReferrer()
+    {
+        return $this->hasMany(ReferralInvite::class, 'referral_code', 'referral_code');
     }
 }
