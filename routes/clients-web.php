@@ -17,7 +17,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('clients/telegram/{telegramId}', [ClientController::class, 'showByTelegramId']);
 
     // Основной resource
-    Route::apiResource('clients', ClientController::class);
+    Route::resource('clients', ClientController::class);
 
     // Вложенные маршруты ПОСЛЕ resource
     Route::get('clients/{id}/statistics', [ClientController::class, 'statistics']);
