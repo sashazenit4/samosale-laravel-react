@@ -10,3 +10,4 @@ require __DIR__.'/loyalty.php';
 require __DIR__.'/clients.php';
 require __DIR__.'/tariffs.php';
 require __DIR__.'/bikes.php';
+require __DIR__.'/equipment.php';
