@@ -166,3 +166,50 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+Route::middleware('auth')->get('/rents', function (Request $request) {
+    $search = $request->query('search');
+
+    // === КЛИЕНТЫ: user_id + name + custom_fields ===
+    $clients = \App\Models\Client::with('customFields')
+        ->select('user_id as user_id', 'name')
+        ->get()
+        ->map(function ($client) {
+            return [
+                'user_id' => $client->user_id,
+                'name' => $client->name,
+                'custom_fields' => $client->customFields->map(function ($cf) {
+                    return [
+                        'field_name' => $cf->field_name,
+                        'field_value' => $cf->field_value,
+                        'field_type' => $cf->field_type,
+                    ];
+                })->toArray(),
+            ];
+        });
+
+    // === ВЕЛОСИПЕДЫ ===
+    $bikes = \App\Models\Bike::select('id', 'bike_number', 'frame_number', 'status')->get();
+
+    // === ТАРИФЫ ===
+    $tariffs = \App\Models\Tariff::select('id', 'program', 'price_week1', 'price_week2', 'price_month')->get();
+
+    // === АРЕНДЫ ===
+    // $query = \App\Models\Rent::with(['client', 'bike', 'tariff'])->latest();
+
+    // if ($search) {
+    //     $query->whereHas('client', function ($q) use ($search) {
+    //         $q->where('name', 'like', "%{$search}%");
+    //     })->orWhereHas('bike', function ($q) use ($search) {
+    //         $q->where('bike_number', 'like', "%{$search}%");
+    //     });
+    // }
+
+    return Inertia::render('Rents', [
+        // 'rents' => $query->paginate(10)->withQueryString(),
+        'filters' => $request->only('search'),
+
+        'clients_options' => $clients,
+        'bikes_options' => $bikes,
+        'tariffs_options' => $tariffs,
+    ]);
+})->name('rents.index');
