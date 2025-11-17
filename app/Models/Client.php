@@ -45,6 +45,7 @@ class Client extends Model
         'registration_date',
         'referral_code',
         'referred_by',
+        'balance',
     ];
 
     /**
@@ -56,6 +57,7 @@ class Client extends Model
         'registration_date' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'balance' => 'decimal:2',
     ];
 
     /**
@@ -166,5 +168,32 @@ class Client extends Model
         } while (self::where('referral_code', $code)->exists());
 
         return $code;
+    }
+
+    public function rentals()
+    {
+        return $this->hasMany(Rental::class, 'client_id', 'user_id');
+    }
+
+    public function activeRentals()
+    {
+        return $this->rentals()->active();
+    }
+
+    // Пополнение баланса
+    public function addToBalance($amount)
+    {
+        $this->balance += $amount;
+        return $this->save();
+    }
+
+    // Списание с баланса
+    public function deductFromBalance($amount)
+    {
+        if ($this->balance >= $amount) {
+            $this->balance -= $amount;
+            return $this->save();
+        }
+        return false;
     }
 }
