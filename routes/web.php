@@ -46,9 +46,9 @@ require __DIR__.'/auth.php';
 Route::middleware('auth')->group(function () {
     Route::get('/clients', function (Request $request) {
         $search = $request->query('search');
-    
+
         $query = Client::with('customFields');
-    
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('phone_number', 'like', "%{$search}%")
@@ -57,7 +57,7 @@ Route::middleware('auth')->group(function () {
                   });
             });
         }
-    
+
         return Inertia::render('Clients', [
             'clients' => $query->paginate(10)->withQueryString(),
             'filters' => $request->only('search'),
@@ -73,7 +73,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/clients/{id}', function ($id) {
         // Вызываем ваш контроллер (или модель напрямую)
         app(\App\Http\Controllers\ClientController::class)->destroy($id);
-    
+
         return back()->with('message', 'Клиент удалён');
     })->name('clients.destroy');
 });
@@ -124,12 +124,12 @@ Route::middleware('auth')->group(function () {
         app(BikeController::class)->store($request);
         return Redirect::back()->with('message', 'Велосипед создан');
     });
-    
+
     Route::put('/bikes/{bike}', function (Request $request, Bike $bike) {
         app(BikeController::class)->update($request, $bike);
         return Redirect::back()->with('message', 'Велосипед обновлён');
     });
-    
+
     Route::delete('/bikes/{bike}', function (Bike $bike) {
         app(BikeController::class)->destroy($bike);
         return Redirect::back()->with('message', 'Велосипед удалён');
@@ -139,12 +139,12 @@ Route::middleware('auth')->group(function () {
         app(\App\Http\Controllers\TariffController::class)->store($request);
         return Redirect::back()->with('message', 'Тариф создан');
     });
-    
+
     Route::put('/tariffs/{tariff}', function (TariffRequest $request, \App\Models\Tariff $tariff) {
         app(\App\Http\Controllers\TariffController::class)->update($request, $tariff);
         return Redirect::back()->with('message', 'Тариф обновлён');
     });
-    
+
     Route::delete('/tariffs/{tariff}', function (\App\Models\Tariff $tariff) {
         app(\App\Http\Controllers\TariffController::class)->destroy($tariff);
         return Redirect::back()->with('message', 'Тариф удалён');
@@ -154,12 +154,12 @@ Route::middleware('auth')->group(function () {
         app(\App\Http\Controllers\EquipmentController::class)->store($request);
         return Redirect::back()->with('message', 'Аккумулятор создан');
     });
-    
+
     Route::put('/equipment/{equipment}', function (Request $request, \App\Models\Equipment $equipment) {
         app(\App\Http\Controllers\EquipmentController::class)->update($request, $equipment);
         return Redirect::back()->with('message', 'Аккумулятор обновлён');
     });
-    
+
     Route::delete('/equipment/{equipment}', function (\App\Models\Equipment $equipment) {
         app(\App\Http\Controllers\EquipmentController::class)->destroy($equipment);
         return Redirect::back()->with('message', 'Аккумулятор удалён');
@@ -194,18 +194,18 @@ Route::middleware('auth')->get('/rents', function (Request $request) {
     $tariffs = \App\Models\Tariff::select('id', 'program', 'price_week1', 'price_week2', 'price_month')->get();
 
     // === АРЕНДЫ ===
-    // $query = \App\Models\Rent::with(['client', 'bike', 'tariff'])->latest();
+     $query = \App\Models\Rental::with(['client', 'bike', 'tariff'])->latest();
 
-    // if ($search) {
-    //     $query->whereHas('client', function ($q) use ($search) {
-    //         $q->where('name', 'like', "%{$search}%");
-    //     })->orWhereHas('bike', function ($q) use ($search) {
-    //         $q->where('bike_number', 'like', "%{$search}%");
-    //     });
-    // }
+     if ($search) {
+         $query->whereHas('client', function ($q) use ($search) {
+             $q->where('name', 'like', "%{$search}%");
+         })->orWhereHas('bike', function ($q) use ($search) {
+             $q->where('bike_number', 'like', "%{$search}%");
+         });
+     }
 
     return Inertia::render('Rents', [
-        // 'rents' => $query->paginate(10)->withQueryString(),
+         'rents' => $query->paginate(10)->withQueryString(),
         'filters' => $request->only('search'),
 
         'clients_options' => $clients,
