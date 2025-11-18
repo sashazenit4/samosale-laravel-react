@@ -553,104 +553,157 @@ export const paymentsColumns = (openDrawer: (record: any) => void) => [
     },
 ];
 
-export const rentsColumns = (openDrawer: (record: any) => void) => [
+export const rentsColumns = (
+    openEdit: (record: any) => void,
+    openExtend: (record: any) => void,
+    openDelete: (record: any) => void,
+) => [
     {
         title: 'ИД',
         dataIndex: 'id',
         key: 'id',
-        fixed: 'left',
+        fixed: 'left' as const,
+        width: 70,
     },
     {
         title: 'Клиент',
         dataIndex: 'client',
         key: 'client',
+        width: 180,
     },
     {
         title: 'Велосипед',
         dataIndex: 'bike',
         key: 'bike',
+        width: 110,
     },
     {
-        title: 'АКБ №1',
-        dataIndex: 'battery_1',
-        key: 'battery_1',
-        render: (text: string | null) => text || '-',
-    },
-    {
-        title: 'АКБ №2',
-        dataIndex: 'battery_2',
-        key: 'battery_2',
-        render: (text: string | null) => text || '-',
+        title: 'АКБ',
+        children: [
+            {
+                title: 'Емкость',
+                dataIndex: 'battery_capacity',
+                key: 'capacity',
+                render: (v: number | null) => (v ? `${v} Вт·ч` : '-'),
+            },
+            {
+                title: 'Кол-во',
+                dataIndex: 'battery_count',
+                key: 'count',
+                render: (v: number) => v || '-',
+            },
+        ],
     },
     {
         title: 'Тариф',
-        dataIndex: 'tariff',
         key: 'tariff',
+        width: 200,
+        render: (_: any, record: any) => {
+            const t = record.tariff;
+            const type = record.tariff_type;
+            const price = record.tariff_price;
+
+            if (!t || !type) return '-';
+
+            const labels: Record<string, string> = {
+                '1 week': '1 неделя',
+                'next weeks': 'последующие недели',
+                month: 'месяц',
+            };
+
+            return (
+                <div>
+                    <div>
+                        <strong>{t.program}</strong>
+                    </div>
+                    <div style={{ color: '#888', fontSize: '0.85em' }}>
+                        <Tag color="default" style={{ margin: 0 }}>
+                            {labels[type] || type}: {price} ₽
+                        </Tag>
+                    </div>
+                </div>
+            );
+        },
     },
     {
-        title: 'Дата начала',
-        dataIndex: 'start_date',
-        key: 'start_date',
-        render: (text: string | null) => text || '-',
+        title: 'Статус',
+        children: [
+            {
+                title: 'Аренда',
+                dataIndex: 'is_completed',
+                key: 'completed',
+                render: (v: boolean) => (
+                    <Tag color={v ? 'blue' : 'green'}>
+                        {v ? 'Завершена' : 'Активна'}
+                    </Tag>
+                ),
+            },
+            {
+                title: 'Оплата',
+                dataIndex: 'paid',
+                key: 'paid',
+                render: (v: string) => (
+                    <Tag color={v === 'paid' ? 'green' : 'red'}>
+                        {v === 'paid' ? 'Оплачено' : 'Не оплачено'}
+                    </Tag>
+                ),
+            },
+        ],
     },
     {
-        title: 'Дата окончания',
-        dataIndex: 'end_date',
-        key: 'end_date',
-        render: (text: string | null) => text || '-',
+        title: 'Даты',
+        children: [
+            {
+                title: 'Начало',
+                dataIndex: 'start_date',
+                key: 'start',
+                render: (date: string | null) =>
+                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+            },
+            {
+                title: 'Завершение',
+                dataIndex: 'end_date',
+                key: 'end',
+                render: (date: string | null) =>
+                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+            },
+        ],
     },
     {
         title: 'Стоимость',
         dataIndex: 'cost',
         key: 'cost',
-        render: (text: number) => `${text} ₽`,
-    },
-    {
-        title: 'Оплачено',
-        dataIndex: 'paid',
-        key: 'paid',
-        render: (text: string) => {
-            const statusOptions: Record<
-                string,
-                { label: string; color: string }
-            > = {
-                paid: { label: 'Оплачено', color: 'green' },
-                unpaid: { label: 'Не оплачено', color: 'red' },
-            };
-            const { label, color } = statusOptions[text] || {
-                label: text,
-                color: 'default',
-            };
-            return <Tag color={color}>{label}</Tag>;
-        },
+        render: (v: number) => <strong>{v} ₽</strong>,
     },
     {
         title: 'Примечание',
         dataIndex: 'note',
         key: 'note',
-        render: (text: string | null) => text || '-',
+        render: (t: string | null) => t || '-',
     },
     {
-        title: 'Действия',
         key: 'actions',
-        fixed: 'right',
-        width: 120,
+        fixed: 'right' as const,
+        width: 150,
         render: (_: any, record: any) => (
             <Space>
                 <Button
+                    size="small"
                     type="text"
                     icon={<EditOutlined />}
-                    onClick={() => openDrawer(record)}
+                    onClick={() => openEdit(record)}
                 />
                 <Button
+                    size="small"
+                    danger
                     type="text"
                     icon={<DeleteOutlined />}
-                    onClick={() => console.log(`Удалить аренду ${record.id}`)}
+                    onClick={() => openDelete(record)}
                 />
                 <Button
-                    type="text"
-                    style={{ color: 'blue' }}
-                    onClick={() => console.log(`Удалить аренду ${record.id}`)}
+                    size="small"
+                    type="link"
+                    onClick={() => openExtend(record)}
                 >
                     Продлить
                 </Button>
