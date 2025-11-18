@@ -36,10 +36,6 @@ class ClientResource extends JsonResource
      */
     private function getCustomFieldValue(string $fieldName): ?string
     {
-        if (!$this->relationLoaded('customFields')) {
-            return null;
-        }
-
         $field = $this->customFields
             ->where('field_name', $fieldName)
             ->first();
