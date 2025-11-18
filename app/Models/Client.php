@@ -196,4 +196,11 @@ class Client extends Model
         }
         return false;
     }
+
+    public function scopeWithoutActiveRentals($query)
+    {
+        return $query->whereDoesntHave('rentals', function ($query) {
+            $query->where('status', 'active');
+        });
+    }
 }

@@ -171,6 +171,7 @@ Route::middleware('auth')->get('/rents', function (Request $request) {
 
     // === КЛИЕНТЫ: user_id + name + custom_fields ===
     $clients = \App\Models\Client::with('customFields')
+        ->withoutActiveRentals()
         ->select('user_id as user_id', 'name')
         ->get()
         ->map(function ($client) {
