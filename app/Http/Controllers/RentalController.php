@@ -163,8 +163,10 @@ class RentalController extends Controller
             'battery_capacity' => 'sometimes|required|string|max:255',
             'batteries_count' => 'sometimes|required|integer|min:1|max:2',
             'planned_end_date' => 'sometimes|required|date|after:start_date',
+            'actual_end_date' => 'sometimes|required|date|after:start_date',
             'total_cost' => 'sometimes|required|numeric|min:0',
-            'note' => 'nullable|string'
+            'note' => 'nullable|string',
+            'status' => 'sometimes|string',
         ]);
 
         if ($validator->fails()) {

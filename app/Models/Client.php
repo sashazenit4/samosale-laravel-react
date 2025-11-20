@@ -196,4 +196,42 @@ class Client extends Model
         }
         return false;
     }
+
+    public function scopeWithoutActiveRentals($query)
+    {
+        return $query->whereDoesntHave('rentals', function ($query) {
+            $query->where('status', 'active');
+        });
+    }
+
+    // Получить полное имя из кастомных полей
+    public function getFullNameAttribute()
+    {
+        if (!$this->relationLoaded('customFields')) {
+            return $this->name;
+        }
+
+        $lastName = $this->getCustomFieldValue('last_name');
+        $firstName = $this->getCustomFieldValue('first_name');
+        $middleName = $this->getCustomFieldValue('middle_name');
+
+        $parts = array_filter([$lastName, $firstName, $middleName]);
+        return implode(' ', $parts) ?: $this->name;
+    }
+
+    // Получить отдельные компоненты имени
+    public function getFirstNameAttribute()
+    {
+        return $this->getCustomFieldValue('first_name');
+    }
+
+    public function getLastNameAttribute()
+    {
+        return $this->getCustomFieldValue('last_name');
+    }
+
+    public function getMiddleNameAttribute()
+    {
+        return $this->getCustomFieldValue('middle_name');
+    }
 }

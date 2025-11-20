@@ -2,14 +2,13 @@ import RentFormDrawer from '@/components/ant-components/RentsFormDrawer';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 import { Inertia, PageProps as InertiaPageProps } from '@inertiajs/inertia';
 import { Head, usePage } from '@inertiajs/react';
 import {
     Button,
     ConfigProvider,
     Form,
-    Input,
     message,
     Modal,
     Select,
@@ -17,10 +16,8 @@ import {
     Table,
 } from 'antd';
 import dayjs from 'dayjs';
-import { FilterIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { rentsColumns } from './columnsConfig';
-import { mockRents } from './mockData';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Аренда', href: dashboard().url },
@@ -33,8 +30,8 @@ interface Tariff {
 
 interface Rent {
     id: number;
-    client: string;
-    bike: string;
+    client: any;
+    bike: any;
     battery_capacity: number | null;
     battery_count: number;
     tariff: Tariff;
@@ -46,6 +43,7 @@ interface Rent {
     paid: 'paid' | 'unpaid';
     is_completed: boolean;
     note: string | null;
+    planned_end_date: any;
 }
 
 interface PageProps extends InertiaPageProps {
@@ -83,6 +81,14 @@ export default function Rents() {
         record: null,
     });
     const [deleteModal, setDeleteModal] = useState<{
+        visible: boolean;
+        record: Rent | null;
+    }>({
+        visible: false,
+        record: null,
+    });
+
+    const [paidModal, setPaidModal] = useState<{
         visible: boolean;
         record: Rent | null;
     }>({
@@ -128,8 +134,13 @@ export default function Rents() {
         setDeleteModal({ visible: true, record });
     };
 
+    const openPaidModal = (record: Rent) => {
+        setPaidModal({ visible: true, record });
+    };
+
     const handleDelete = () => {
         if (!deleteModal.record) return;
+        console.log(deleteModal.record.id);
         Inertia.delete(`/rents/${deleteModal.record.id}`, {
             preserveState: true,
             onSuccess: () => {
@@ -138,6 +149,21 @@ export default function Rents() {
             },
             onError: () => message.error('Ошибка удаления'),
         });
+    };
+    const handlePaid = () => {
+        if (!paidModal.record) return;
+        Inertia.post(
+            `/rents/${paidModal.record.id}/mark-paid`,
+            {},
+            {
+                preserveState: true,
+                onSuccess: () => {
+                    message.success('Аренда оплачена');
+                    setDeleteModal({ visible: false, record: null });
+                },
+                onError: () => message.error('Ошибка удаления'),
+            },
+        );
     };
 
     // ВАЖНО: Используем Modal.confirm ИЗ ConfigProvider
@@ -150,23 +176,108 @@ export default function Rents() {
     };
 
     const onSubmit = (values: any) => {
-        console.log(values);
-        // const isEdit = !!drawer.record;
-        // const url = isEdit ? `/rents/${drawer.record!.id}` : '/rents';
-        // const method = isEdit ? Inertia.put : Inertia.post;
-
-        // method(url, values, {
-        //     preserveState: true,
-        //     preserveScroll: true,
-        //     onSuccess: () => {
-        //         message.success(isEdit ? 'Аренда обновлена' : 'Аренда создана');
-        //         closeDrawer();
-        //     },
-        //     onError: () => message.error('Проверьте поля'),
-        // });
+        const payload = {
+            ...values,
+            start_date: dayjs(values.start_date).format('YYYY-MM-DD HH:mm:ss'),
+            planned_end_date: dayjs(values.planned_end_date).format(
+                'YYYY-MM-DD HH:mm:ss',
+            ),
+            actual_end_date: dayjs(values.actual_end_date).format(
+                'YYYY-MM-DD HH:mm:ss',
+            ),
+        };
+        const isEdit = !!drawer.record;
+        const url = isEdit ? `/rents/${drawer.record!.id}` : '/rents';
+        console.log(payload);
+        if (isEdit) {
+            if (payload.status === 'active') {
+                changeRent(payload);
+            }
+            if (payload.status === 'completed_early') {
+                completeEarly({
+                    completion_type: payload.completion_type,
+                    note: payload.note,
+                });
+            }
+            if (payload.status === 'completed') {
+                complete();
+            }
+        } else {
+            Inertia.post(url, payload, {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    message.success(isEdit ? 'Обновлено' : 'Создано');
+                    closeDrawer();
+                    // Inertia.reload();
+                },
+                onError: () => message.error('Ошибка'),
+            });
+        }
     };
 
-    const columns = rentsColumns(openDrawer, openExtendModal, openDeleteModal);
+    function changeRent(payload: any) {
+        Inertia.put(`/rents/${drawer.record!.id}`, payload, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: (page) => {
+                console.log('УСПЕХ! Ответ сервера:', page);
+                closeDrawer();
+            },
+            onError: (errors) => {
+                console.log('ОШИБКИ валидации:', errors);
+                message.error('Проверьте поля');
+            },
+            onFinish: () => {
+                console.log('Запрос завершён');
+            },
+        });
+    }
+    function completeEarly(payload: any) {
+        Inertia.post(`/rents/${drawer.record!.id}/complete-early`, payload, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: (page) => {
+                console.log('УСПЕХ! Ответ сервера:', page);
+                closeDrawer();
+            },
+            onError: (errors) => {
+                console.log('ОШИБКИ валидации:', errors);
+                message.error('Проверьте поля');
+            },
+            onFinish: () => {
+                console.log('Запрос завершён');
+            },
+        });
+    }
+    function complete() {
+        Inertia.post(
+            `/rents/${drawer.record!.id}/complete`,
+            {},
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: (page) => {
+                    console.log('УСПЕХ! Ответ сервера:', page);
+                    closeDrawer();
+                },
+                onError: (errors) => {
+                    console.log('ОШИБКИ валидации:', errors);
+                    message.error('Проверьте поля');
+                },
+                onFinish: () => {
+                    console.log('Запрос завершён');
+                },
+            },
+        );
+    }
+
+    const columns = rentsColumns(
+        openDrawer,
+        openExtendModal,
+        openDeleteModal,
+        openPaidModal,
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -208,7 +319,7 @@ export default function Rents() {
                             Добавить аренду
                         </Button>
                         <Space>
-                            <Input
+                            {/* <Input
                                 placeholder="Поиск по клиенту, примечанию..."
                                 prefix={<SearchOutlined />}
                                 value={search}
@@ -217,13 +328,13 @@ export default function Rents() {
                                 allowClear
                                 style={{ width: 320 }}
                             />
-                            <Button icon={<FilterIcon size={18} />} />
+                            <Button icon={<FilterIcon size={18} />} /> */}
                         </Space>
                     </Space>
 
                     <Table
                         columns={columns}
-                        dataSource={rents?.data || mockRents}
+                        dataSource={rents?.data}
                         rowKey="id"
                         pagination={{
                             current: rents?.current_page || 1,
@@ -261,6 +372,18 @@ export default function Rents() {
                         <p>Вы уверены? Это действие нельзя отменить.</p>
                     </Modal>
                     <Modal
+                        title="Отметить аренду как оплаченную?"
+                        open={paidModal.visible}
+                        onCancel={() =>
+                            setPaidModal({ visible: false, record: null })
+                        }
+                        onOk={handlePaid}
+                        okText="Оплачена"
+                        cancelText="Отмена"
+                    >
+                        <p>Вы уверены? Это действие нельзя отменить.</p>
+                    </Modal>
+                    <Modal
                         title="Продлить аренду"
                         open={extendModal.visible}
                         onCancel={closeExtendModal}
@@ -271,10 +394,17 @@ export default function Rents() {
                                 extendModal.weeks === 4
                                     ? 30
                                     : extendModal.weeks * 7;
-
+                            const parsed = dayjs(
+                                extendModal.record?.planned_end_date,
+                            );
+                            const end_date = parsed.isValid()
+                                ? parsed
+                                      .add(days, 'day')
+                                      .format('YYYY-MM-DD HH:mm:ss')
+                                : extendModal.record?.planned_end_date;
                             Inertia.put(
-                                `/rents/${extendModal.record.id}/extend`,
-                                { days },
+                                `/rents/${extendModal.record.id}`,
+                                { planned_end_date: end_date },
                                 {
                                     preserveState: true,
                                     onSuccess: () => {
@@ -298,17 +428,20 @@ export default function Rents() {
                         <Space direction="vertical" style={{ width: '100%' }}>
                             <div>
                                 <strong>Клиент:</strong>{' '}
-                                {extendModal.record?.client}
+                                {extendModal.record?.client.full_name}
                             </div>
                             <div>
                                 <strong>Велосипед:</strong>{' '}
-                                {extendModal.record?.bike}
+                                {extendModal.record?.bike.bike_number}
                             </div>
                             <div>
                                 <strong>Текущая дата окончания:</strong>{' '}
-                                {extendModal.record?.end_date
+                                {extendModal.record?.planned_end_date
                                     ? dayjs
-                                          .utc(extendModal.record.end_date)
+                                          .utc(
+                                              extendModal.record
+                                                  .planned_end_date,
+                                          )
                                           .format('DD.MM.YYYY')
                                     : 'не установлена'}
                             </div>
