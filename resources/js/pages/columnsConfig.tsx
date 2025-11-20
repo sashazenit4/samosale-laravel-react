@@ -1,4 +1,4 @@
-import { Button, Space, Tag } from 'antd';
+import { Button, Col, Row, Space, Tag } from 'antd';
 import dayjs from 'dayjs';
 
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
@@ -557,6 +557,7 @@ export const rentsColumns = (
     openEdit: (record: any) => void,
     openExtend: (record: any) => void,
     openDelete: (record: any) => void,
+    openPaidModal: (record: any) => void,
 ) => [
     {
         title: 'ИД',
@@ -567,15 +568,17 @@ export const rentsColumns = (
     },
     {
         title: 'Клиент',
-        dataIndex: 'client',
-        key: 'client',
+        dataIndex: 'full_name',
+        key: 'full_name',
         width: 180,
+        render: (_: any, record: any) => record?.client?.full_name || '-',
     },
     {
         title: 'Велосипед',
         dataIndex: 'bike',
         key: 'bike',
         width: 110,
+        render: (_: any, record: any) => record?.bike?.bike_number || '-',
     },
     {
         title: 'АКБ',
@@ -588,8 +591,8 @@ export const rentsColumns = (
             },
             {
                 title: 'Кол-во',
-                dataIndex: 'battery_count',
-                key: 'count',
+                dataIndex: 'batteries_count',
+                key: 'batteries_count',
                 render: (v: number) => v || '-',
             },
         ],
@@ -600,26 +603,30 @@ export const rentsColumns = (
         width: 200,
         render: (_: any, record: any) => {
             const t = record.tariff;
-            const type = record.tariff_type;
-            const price = record.tariff_price;
+            const type = t.program;
+            const price = record.tariff;
 
             if (!t || !type) return '-';
 
             const labels: Record<string, string> = {
-                '1 week': '1 неделя',
-                'next weeks': 'последующие недели',
-                month: 'месяц',
+                price_week1: '1 неделя',
+                price_week2: 'последующие недели',
+                price_month: 'месяц',
             };
 
             return (
                 <div>
                     <div>
-                        <strong>{t.program}</strong>
+                        <strong>
+                            {t.program} {t.power}W
+                        </strong>
                     </div>
                     <div style={{ color: '#888', fontSize: '0.85em' }}>
-                        <Tag color="default" style={{ margin: 0 }}>
-                            {labels[type] || type}: {price} ₽
-                        </Tag>
+                        {Object.keys(labels).map((type) => (
+                            <Tag color="default" style={{ margin: 0 }}>
+                                {labels[type]}: {price[type]}₽
+                            </Tag>
+                        ))}
                     </div>
                 </div>
             );
@@ -630,18 +637,30 @@ export const rentsColumns = (
         children: [
             {
                 title: 'Аренда',
-                dataIndex: 'is_completed',
-                key: 'completed',
-                render: (v: boolean) => (
-                    <Tag color={v ? 'blue' : 'green'}>
-                        {v ? 'Завершена' : 'Активна'}
+                dataIndex: 'status',
+                key: 'status',
+                render: (v: any) => (
+                    <Tag
+                        color={
+                            v === 'active'
+                                ? 'green'
+                                : v === 'completed'
+                                  ? 'blue'
+                                  : 'magenta'
+                        }
+                    >
+                        {v === 'active'
+                            ? 'Активна'
+                            : v === 'completed'
+                              ? 'Завершена'
+                              : 'Отменена / завершена заранее'}
                     </Tag>
                 ),
             },
             {
                 title: 'Оплата',
-                dataIndex: 'paid',
-                key: 'paid',
+                dataIndex: 'paid_status',
+                key: 'paid_status',
                 render: (v: string) => (
                     <Tag color={v === 'paid' ? 'green' : 'red'}>
                         {v === 'paid' ? 'Оплачено' : 'Не оплачено'}
@@ -661,8 +680,15 @@ export const rentsColumns = (
                     date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
             },
             {
-                title: 'Завершение',
-                dataIndex: 'end_date',
+                title: 'Плановое завершение',
+                dataIndex: 'planned_end_date',
+                key: 'end',
+                render: (date: string | null) =>
+                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+            },
+            {
+                title: 'Фактическое завершение',
+                dataIndex: 'actual_end_date',
                 key: 'end',
                 render: (date: string | null) =>
                     date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
@@ -671,8 +697,8 @@ export const rentsColumns = (
     },
     {
         title: 'Стоимость',
-        dataIndex: 'cost',
-        key: 'cost',
+        dataIndex: 'total_cost',
+        key: 'total_cost',
         render: (v: number) => <strong>{v} ₽</strong>,
     },
     {
@@ -684,30 +710,58 @@ export const rentsColumns = (
     {
         key: 'actions',
         fixed: 'right' as const,
-        width: 150,
+        width: 250,
         render: (_: any, record: any) => (
-            <Space>
-                <Button
-                    size="small"
-                    type="text"
-                    icon={<EditOutlined />}
-                    onClick={() => openEdit(record)}
-                />
-                <Button
-                    size="small"
-                    danger
-                    type="text"
-                    icon={<DeleteOutlined />}
-                    onClick={() => openDelete(record)}
-                />
-                <Button
-                    size="small"
-                    type="link"
-                    onClick={() => openExtend(record)}
-                >
-                    Продлить
-                </Button>
-            </Space>
+            <Row gutter={[30, 30]}>
+                <Col span={6}>
+                    {record.status === 'active' && (
+                        <Button
+                            size="small"
+                            type="text"
+                            icon={<EditOutlined />}
+                            onClick={() => openEdit(record)}
+                        />
+                    )}
+                </Col>
+                <Col span={18}>
+                    {record.status === 'active' && (
+                        <Button
+                            size="small"
+                            onClick={() => openPaidModal(record)}
+                            type="link"
+                            style={{
+                                whiteSpace: 'normal',
+                                textAlign: 'left',
+                                height: '100% ',
+                                paddingBlock: 4,
+                            }}
+                        >
+                            Отметить как оплаченное
+                        </Button>
+                    )}
+                </Col>
+
+                <Col span={6}>
+                    <Button
+                        size="small"
+                        danger
+                        type="text"
+                        icon={<DeleteOutlined />}
+                        onClick={() => openDelete(record)}
+                    />
+                </Col>
+                <Col span={18}>
+                    {record.status === 'active' && (
+                        <Button
+                            size="small"
+                            type="link"
+                            onClick={() => openExtend(record)}
+                        >
+                            Продлить
+                        </Button>
+                    )}
+                </Col>
+            </Row>
         ),
     },
 ];

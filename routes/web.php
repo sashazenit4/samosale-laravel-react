@@ -5,11 +5,13 @@ use Inertia\Inertia;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\BikeController;
 use App\Http\Controllers\TariffController;
+use App\Http\Controllers\RentalController;
 
 use Illuminate\Http\Request;
 use App\Models\Client;
 use App\Models\Bike;
 use App\Models\Tariff;
+use App\Models\Rental;
 
 use App\Http\Requests\TariffRequest;
 
@@ -164,53 +166,73 @@ Route::middleware('auth')->group(function () {
         app(\App\Http\Controllers\EquipmentController::class)->destroy($equipment);
         return Redirect::back()->with('message', 'Аккумулятор удалён');
     });
+
+    Route::post('/rents', function (Request $request) {
+        app(RentalController::class)->store($request);
+        return Redirect::back()->with('message', 'Аренда создана');
+    });
+
+    Route::put('/rents/{rent}', function (Request $request, Rental $rent) {
+        app(RentalController::class)->update($request, $rent);
+        return Redirect::back()->with('message', 'Аренда обновлена');
+    });
+
+    Route::post('/rents/{rent}/complete-early', function (Request $request, Rental $rent) {
+        app(RentalController::class)->completeEarly($request, $rent);
+        return Redirect::back()->with('message', 'Аренда обновлена');
+    });
+
+    Route::post('/rents/{rent}/complete', function (Rental $rent) {
+        app(RentalController::class)->complete($rent);
+        return Redirect::back()->with('message', 'Аренда обновлена');
+    });
+    Route::post('/rents/{rent}/mark-paid', function (Rental $rent) {
+        app(RentalController::class)->markAsPaid($rent);
+        return Redirect::back()->with('message', 'Аренда обновлена');
+    });
+
+
+    Route::delete('/rents/{rent}', function (Rental $rent) {
+        app(RentalController::class)->destroy($rent);
+        return Redirect::back()->with('message', 'Аренда удалена');
+    });
 });
 
 Route::middleware('auth')->get('/rents', function (Request $request) {
-    $search = $request->query('search');
+    $apiResponse = app(RentalController::class)->index($request);
 
-    // === КЛИЕНТЫ: user_id + name + custom_fields ===
+    if (!$apiResponse->getData()->success) {
+        abort(500, 'Не удалось загрузить аренды');
+    }
+
+    $rents = $apiResponse->getData()->data;
+    $meta  = $apiResponse->getData()->meta;
+
     $clients = \App\Models\Client::with('customFields')
         ->withoutActiveRentals()
         ->select('user_id as user_id', 'name')
         ->get()
-        ->map(function ($client) {
-            return [
-                'user_id' => $client->user_id,
-                'name' => $client->name,
-                'custom_fields' => $client->customFields->map(function ($cf) {
-                    return [
-                        'field_name' => $cf->field_name,
-                        'field_value' => $cf->field_value,
-                        'field_type' => $cf->field_type,
-                    ];
-                })->toArray(),
-            ];
-        });
+        ->map(fn($c) => [
+            'user_id'       => $c->user_id,
+            'name'          => $c->name,
+            'custom_fields' => $c->customFields->map(fn($cf) => [
+                'field_name'  => $cf->field_name,
+                'field_value' => $cf->field_value,
+                'field_type'  => $cf->field_type,
+            ])->toArray(),
+        ]);
 
-    // === ВЕЛОСИПЕДЫ ===
     $bikes = \App\Models\Bike::select('id', 'bike_number', 'frame_number', 'status')->get();
-
-    // === ТАРИФЫ ===
-    $tariffs = \App\Models\Tariff::select('id', 'program', 'price_week1', 'price_week2', 'price_month')->get();
-
-    // === АРЕНДЫ ===
-     $query = \App\Models\Rental::with(['client', 'bike', 'tariff'])->latest();
-
-     if ($search) {
-         $query->whereHas('client', function ($q) use ($search) {
-             $q->where('name', 'like', "%{$search}%");
-         })->orWhereHas('bike', function ($q) use ($search) {
-             $q->where('bike_number', 'like', "%{$search}%");
-         });
-     }
+    $tariffs = \App\Models\Tariff::select('id', 'program', 'power', 'price_week1', 'price_week2', 'price_month')->get();
 
     return Inertia::render('Rents', [
-         'rents' => $query->paginate(10)->withQueryString(),
+        'rents' => [
+            'data' => $rents,
+            'meta' => $meta,
+        ],
         'filters' => $request->only('search'),
-
         'clients_options' => $clients,
-        'bikes_options' => $bikes,
+        'bikes_options'   => $bikes,
         'tariffs_options' => $tariffs,
     ]);
 })->name('rents.index');
