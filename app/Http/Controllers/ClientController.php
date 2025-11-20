@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Repositories\ClientRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -411,5 +412,63 @@ class ClientController extends Controller
             'success' => true,
             'exists' => $exists
         ]);
+    }
+
+    /**
+     * Проверить наличие активной аренды у клиента
+     */
+    public function checkActiveRental(Client $client): JsonResponse
+    {
+        try {
+            $hasActiveRental = $client->activeRentals()->exists();
+
+            return response()->json([
+                'success' => true,
+                'has_active_rental' => $hasActiveRental,
+                'client_id' => $client->user_id,
+                'client_name' => $client->name
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check active rental',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Проверить наличие активной аренды по telegram_id
+     */
+    public function checkActiveRentalByTelegram($telegramId): JsonResponse
+    {
+        try {
+            $client = Client::where('telegram_id', $telegramId)->first();
+
+            if (!$client) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Client not found'
+                ], 404);
+            }
+
+            $hasActiveRental = $client->activeRentals()->exists();
+
+            return response()->json([
+                'success' => true,
+                'has_active_rental' => $hasActiveRental,
+                'client_id' => $client->user_id,
+                'client_name' => $client->name,
+                'telegram_id' => $client->telegram_id
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check active rental',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

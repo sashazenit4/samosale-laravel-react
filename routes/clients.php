@@ -24,4 +24,11 @@ Route::middleware(['auth:sanctum', 'api'])->group(function () {
     Route::get('clients/{id}/referrals', [ClientController::class, 'referrals']);
     Route::get('clients/{id}/custom-fields', [ClientController::class, 'getCustomFields']);
     Route::put('clients/{id}/custom-field', [ClientController::class, 'updateCustomField']);
+    // Проверка активной аренды
+    Route::get('/clients/{client}/check-active-rental', [ClientController::class, 'checkActiveRental'])
+        ->name('clients.check-active-rental');
+
+    // Проверка активной аренды по telegram_id
+    Route::get('/clients/telegram/{telegramId}/check-active-rental', [ClientController::class, 'checkActiveRentalByTelegram'])
+        ->name('clients.telegram.check-active-rental');
 });
