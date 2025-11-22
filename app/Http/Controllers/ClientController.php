@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Repositories\ClientRepository;
+use App\Http\Resources\ClientResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -411,5 +413,75 @@ class ClientController extends Controller
             'success' => true,
             'exists' => $exists
         ]);
+    }
+
+    /**
+     * Проверить наличие активной аренды у клиента
+     */
+    public function checkActiveRental(Client $client): JsonResponse
+    {
+        try {
+            $activeRental = $client->activeRentals()->first();
+
+            return response()->json([
+                'success' => true,
+                'has_active_rental' => $activeRental !== null,
+                'rental_id'         => $activeRental?->id,
+                'client_id'         => $client->user_id,
+                'client_name'       => $client->name,
+                'telegram_id'       => $client->telegram_id,
+                'planned_end_date'  => $activeRental?->planned_end_date,
+                'start_date' => $activeRental?->start_date,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check active rental',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Проверить наличие активной аренды по telegram_id
+     */
+    public function checkActiveRentalByTelegram($telegramId): JsonResponse
+    {
+        try {
+            $client = Client::where('telegram_id', $telegramId)->first();
+
+            if (!$client) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Client not found'
+                ], 404);
+            }
+
+            $activeRental = $client->activeRentals()->first();
+            $clientData = new ClientResource($client);
+
+
+            return response()->json([
+                'success' => true,
+                'has_active_rental' => $activeRental !== null,
+                'rental_id'         => $activeRental?->id,
+                'client_id'         => $client->user_id,
+                'client_name'       => $client->name,
+                'telegram_id'       => $client->telegram_id,
+                'planned_end_date'  => $activeRental?->planned_end_date,
+                'start_date' => $activeRental?->start_date,
+                'client' => $clientData,
+                'bike' => $activeRental?->bike,
+                'tariff' => $activeRental?->tariff,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check active rental',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
