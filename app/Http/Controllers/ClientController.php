@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Repositories\ClientRepository;
+use App\Http\Resources\ClientResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -420,13 +421,17 @@ class ClientController extends Controller
     public function checkActiveRental(Client $client): JsonResponse
     {
         try {
-            $hasActiveRental = $client->activeRentals()->exists();
+            $activeRental = $client->activeRentals()->first();
 
             return response()->json([
                 'success' => true,
-                'has_active_rental' => $hasActiveRental,
-                'client_id' => $client->user_id,
-                'client_name' => $client->name
+                'has_active_rental' => $activeRental !== null,
+                'rental_id'         => $activeRental?->id,
+                'client_id'         => $client->user_id,
+                'client_name'       => $client->name,
+                'telegram_id'       => $client->telegram_id,
+                'planned_end_date'  => $activeRental?->planned_end_date,
+                'start_date' => $activeRental?->start_date,
             ]);
 
         } catch (\Exception $e) {
@@ -453,14 +458,22 @@ class ClientController extends Controller
                 ], 404);
             }
 
-            $hasActiveRental = $client->activeRentals()->exists();
+            $activeRental = $client->activeRentals()->first();
+            $clientData = new ClientResource($client);
+
 
             return response()->json([
                 'success' => true,
-                'has_active_rental' => $hasActiveRental,
-                'client_id' => $client->user_id,
-                'client_name' => $client->name,
-                'telegram_id' => $client->telegram_id
+                'has_active_rental' => $activeRental !== null,
+                'rental_id'         => $activeRental?->id,
+                'client_id'         => $client->user_id,
+                'client_name'       => $client->name,
+                'telegram_id'       => $client->telegram_id,
+                'planned_end_date'  => $activeRental?->planned_end_date,
+                'start_date' => $activeRental?->start_date,
+                'client' => $clientData,
+                'bike' => $activeRental?->bike,
+                'tariff' => $activeRental?->tariff,
             ]);
 
         } catch (\Exception $e) {
