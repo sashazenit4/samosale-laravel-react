@@ -1,4 +1,4 @@
-import { Button, Space, Tag } from 'antd';
+import { Button, Col, Row, Space, Tag } from 'antd';
 import dayjs from 'dayjs';
 
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
@@ -553,108 +553,215 @@ export const paymentsColumns = (openDrawer: (record: any) => void) => [
     },
 ];
 
-export const rentsColumns = (openDrawer: (record: any) => void) => [
+export const rentsColumns = (
+    openEdit: (record: any) => void,
+    openExtend: (record: any) => void,
+    openDelete: (record: any) => void,
+    openPaidModal: (record: any) => void,
+) => [
     {
         title: 'ИД',
         dataIndex: 'id',
         key: 'id',
-        fixed: 'left',
+        fixed: 'left' as const,
+        width: 70,
     },
     {
         title: 'Клиент',
-        dataIndex: 'client',
-        key: 'client',
+        dataIndex: 'full_name',
+        key: 'full_name',
+        width: 180,
+        render: (_: any, record: any) => record?.client?.full_name || '-',
     },
     {
         title: 'Велосипед',
         dataIndex: 'bike',
         key: 'bike',
+        width: 110,
+        render: (_: any, record: any) => record?.bike?.bike_number || '-',
     },
     {
-        title: 'АКБ №1',
-        dataIndex: 'battery_1',
-        key: 'battery_1',
-        render: (text: string | null) => text || '-',
-    },
-    {
-        title: 'АКБ №2',
-        dataIndex: 'battery_2',
-        key: 'battery_2',
-        render: (text: string | null) => text || '-',
+        title: 'АКБ',
+        children: [
+            {
+                title: 'Емкость',
+                dataIndex: 'battery_capacity',
+                key: 'capacity',
+                render: (v: number | null) => (v ? `${v} Вт·ч` : '-'),
+            },
+            {
+                title: 'Кол-во',
+                dataIndex: 'batteries_count',
+                key: 'batteries_count',
+                render: (v: number) => v || '-',
+            },
+        ],
     },
     {
         title: 'Тариф',
-        dataIndex: 'tariff',
         key: 'tariff',
+        width: 200,
+        render: (_: any, record: any) => {
+            const t = record.tariff;
+            const type = t.program;
+            const price = record.tariff;
+
+            if (!t || !type) return '-';
+
+            const labels: Record<string, string> = {
+                price_week1: '1 неделя',
+                price_week2: 'последующие недели',
+                price_month: 'месяц',
+            };
+
+            return (
+                <div>
+                    <div>
+                        <strong>
+                            {t.program} {t.power}W
+                        </strong>
+                    </div>
+                    <div style={{ color: '#888', fontSize: '0.85em' }}>
+                        {Object.keys(labels).map((type) => (
+                            <Tag color="default" style={{ margin: 0 }}>
+                                {labels[type]}: {price[type]}₽
+                            </Tag>
+                        ))}
+                    </div>
+                </div>
+            );
+        },
     },
     {
-        title: 'Дата начала',
-        dataIndex: 'start_date',
-        key: 'start_date',
-        render: (text: string | null) => text || '-',
+        title: 'Статус',
+        children: [
+            {
+                title: 'Аренда',
+                dataIndex: 'status',
+                key: 'status',
+                render: (v: any) => (
+                    <Tag
+                        color={
+                            v === 'active'
+                                ? 'green'
+                                : v === 'completed'
+                                  ? 'blue'
+                                  : 'magenta'
+                        }
+                    >
+                        {v === 'active'
+                            ? 'Активна'
+                            : v === 'completed'
+                              ? 'Завершена'
+                              : 'Отменена / завершена заранее'}
+                    </Tag>
+                ),
+            },
+            {
+                title: 'Оплата',
+                dataIndex: 'paid_status',
+                key: 'paid_status',
+                render: (v: string) => (
+                    <Tag color={v === 'paid' ? 'green' : 'red'}>
+                        {v === 'paid' ? 'Оплачено' : 'Не оплачено'}
+                    </Tag>
+                ),
+            },
+        ],
     },
     {
-        title: 'Дата окончания',
-        dataIndex: 'end_date',
-        key: 'end_date',
-        render: (text: string | null) => text || '-',
+        title: 'Даты',
+        children: [
+            {
+                title: 'Начало',
+                dataIndex: 'start_date',
+                key: 'start',
+                render: (date: string | null) =>
+                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+            },
+            {
+                title: 'Плановое завершение',
+                dataIndex: 'planned_end_date',
+                key: 'end',
+                render: (date: string | null) =>
+                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+            },
+            {
+                title: 'Фактическое завершение',
+                dataIndex: 'actual_end_date',
+                key: 'end',
+                render: (date: string | null) =>
+                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+            },
+        ],
     },
     {
         title: 'Стоимость',
-        dataIndex: 'cost',
-        key: 'cost',
-        render: (text: number) => `${text} ₽`,
-    },
-    {
-        title: 'Оплачено',
-        dataIndex: 'paid',
-        key: 'paid',
-        render: (text: string) => {
-            const statusOptions: Record<
-                string,
-                { label: string; color: string }
-            > = {
-                paid: { label: 'Оплачено', color: 'green' },
-                unpaid: { label: 'Не оплачено', color: 'red' },
-            };
-            const { label, color } = statusOptions[text] || {
-                label: text,
-                color: 'default',
-            };
-            return <Tag color={color}>{label}</Tag>;
-        },
+        dataIndex: 'total_cost',
+        key: 'total_cost',
+        render: (v: number) => <strong>{v} ₽</strong>,
     },
     {
         title: 'Примечание',
         dataIndex: 'note',
         key: 'note',
-        render: (text: string | null) => text || '-',
+        render: (t: string | null) => t || '-',
     },
     {
-        title: 'Действия',
         key: 'actions',
-        fixed: 'right',
-        width: 120,
+        fixed: 'right' as const,
+        width: 250,
         render: (_: any, record: any) => (
-            <Space>
-                <Button
-                    type="text"
-                    icon={<EditOutlined />}
-                    onClick={() => openDrawer(record)}
-                />
-                <Button
-                    type="text"
-                    icon={<DeleteOutlined />}
-                    onClick={() => console.log(`Удалить аренду ${record.id}`)}
-                />
-                <Button
-                    type="text"
-                    style={{ color: 'blue' }}
-                    onClick={() => console.log(`Удалить аренду ${record.id}`)}
-                >
-                    Продлить
-                </Button>
-            </Space>
+            <Row gutter={[30, 30]}>
+                <Col span={6}>
+                    {record.status === 'active' && (
+                        <Button
+                            size="small"
+                            type="text"
+                            icon={<EditOutlined />}
+                            onClick={() => openEdit(record)}
+                        />
+                    )}
+                </Col>
+                <Col span={18}>
+                    {record.status === 'active' && (
+                        <Button
+                            size="small"
+                            onClick={() => openPaidModal(record)}
+                            type="link"
+                            style={{
+                                whiteSpace: 'normal',
+                                textAlign: 'left',
+                                height: '100% ',
+                                paddingBlock: 4,
+                            }}
+                        >
+                            Отметить как оплаченное
+                        </Button>
+                    )}
+                </Col>
+
+                <Col span={6}>
+                    <Button
+                        size="small"
+                        danger
+                        type="text"
+                        icon={<DeleteOutlined />}
+                        onClick={() => openDelete(record)}
+                    />
+                </Col>
+                <Col span={18}>
+                    {record.status === 'active' && (
+                        <Button
+                            size="small"
+                            type="link"
+                            onClick={() => openExtend(record)}
+                        >
+                            Продлить
+                        </Button>
+                    )}
+                </Col>
+            </Row>
         ),
     },
 ];
