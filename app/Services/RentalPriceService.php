@@ -37,7 +37,6 @@ class RentalPriceService
         $remainingDays = $days;
         $currentDate = $startDate ? $startDate->copy() : null;
 
-        // Для коротких периодов (до 28 дней) используем недельную логику
         if ($days <= 28) {
             $weekNumber = 1;
 
@@ -65,7 +64,6 @@ class RentalPriceService
                 }
             }
         } else {
-            // Для длинных периодов (больше 28 дней) используем месячную логику
             $fullMonths = floor($days / 30);
             $remainingDays = $days % 30;
 
@@ -133,7 +131,6 @@ class RentalPriceService
         } elseif ($days <= 28) {
             return $tariff->price_week4 + $tariff->price_week3 + $tariff->price_week2 + $tariff->price_week1;
         } else {
-            // Расчет для периодов больше 28 дней
             return $this->calculateMonthlyPrice($tariff, $days);
         }
     }
@@ -157,6 +154,8 @@ class RentalPriceService
                 $totalPrice += $tariff->price_week1 + $tariff->price_week2;
             } elseif ($remainingDays <= 21) {
                 $totalPrice += $tariff->price_week1 + $tariff->price_week2 + $tariff->price_week3;
+            } elseif ($remainingDays <= 28) {
+                $totalPrice += $tariff->price_week1 + $tariff->price_week2 + $tariff->price_week3 + $tariff->price_week4;
             } else {
                 $totalPrice += $tariff->price_month;
             }

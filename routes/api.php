@@ -15,3 +15,4 @@ require __DIR__.'/rentals.php';
 require __DIR__.'/payments.php';
 require __DIR__.'/bank-configuration.php';
 require __DIR__.'/transactions.php';
+require __DIR__.'/bonuses.php';
