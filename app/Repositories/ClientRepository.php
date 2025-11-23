@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Client;
 use App\Models\CustomClientField;
+use App\Models\ReferralInvite;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Services\CustomFieldValidationService;
@@ -60,6 +61,10 @@ class ClientRepository
             // Генерируем реферальный код если не предоставлен
             if (!isset($data['referral_code'])) {
                 $data['referral_code'] = Client::generateReferralCode();
+            }
+
+            if (!isset($data['referred_by'])) {
+                $data['referred_by'] = $this->getReferredByFromInvites($data['telegram_id']);
             }
 
             $customFields = $data['custom_fields'] ?? [];
@@ -300,9 +305,11 @@ class ClientRepository
                 ->get()
                 ->toArray(),
         ];
-    }/**
- * Save validated custom fields
- */
+    }
+
+    /**
+     * Save validated custom fields
+     */
     private function saveValidatedCustomFields(Client $client, array $validatedFields): void
     {
         foreach ($validatedFields as $field) {
@@ -366,5 +373,12 @@ class ClientRepository
             'valid' => true,
             'type' => $template->type,
         ];
+    }
+
+    protected function getReferredByFromInvites(int $telegramId): ?int
+    {
+        return Client::whereHas('referralInvites', function ($query) use ($telegramId) {
+            $query->where('telegram_id', $telegramId);
+        })->value('user_id');
     }
 }
