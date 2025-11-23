@@ -74,4 +74,10 @@ class Rental extends Model
     {
         return $this->isActive() && now()->lt($this->planned_end_date);
     }
+
+    // Добавляем отношение к платежам
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
 }
