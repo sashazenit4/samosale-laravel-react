@@ -41,7 +41,7 @@ class TochkaBankService
                 'amount' => (string) ($transaction->amount * 100), // Перевод в копейки
                 'currency' => 'RUB',
                 'paymentPurpose' => $transaction->description ?: "Оплата платежа #{$transaction->payment_id}",
-                'qrcType' => '01',
+                'qrcType' => '02',
                 'imageParams' => [
                     'width' => 300,
                     'height' => 300,
@@ -196,8 +196,7 @@ class TochkaBankService
             if ($response->successful()) {
                 // Обрабатываем ответ согласно документации
                 if (isset($responseData['Data'])) {
-                    $data = $responseData['Data'];
-
+                    $data = $responseData['Data']['paymentList'][0];
                     return [
                         'success' => true,
                         'status' => $this->mapBankStatus($data['status'] ?? null),

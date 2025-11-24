@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTransactionRequest;
 use App\Http\Requests\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
+use App\Models\BankConfiguration;
 use App\Models\Payment;
 use App\Models\Transaction;
 use App\Services\TochkaBankService;
@@ -211,7 +212,8 @@ class TransactionController extends Controller
                 ], 422);
             }
 
-            $bankService = new TochkaBankService();
+            $config = BankConfiguration::where('is_active', 1)->first();
+            $bankService = new TochkaBankService($config->environment);
             $statusResult = $bankService->checkPaymentStatus($transaction->qr_code_id);
 
             if ($statusResult['success']) {
