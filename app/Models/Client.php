@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -44,6 +45,7 @@ class Client extends Model
         'referral_code',
         'referred_by',
         'balance',
+        'bonus_balance', // бонусные баллы
     ];
 
     /**
@@ -189,6 +191,8 @@ class Client extends Model
     public function referralInvitesAsReferrer()
     {
         return $this->hasMany(ReferralInvite::class, 'referral_code', 'referral_code');
+    }
+
     public function rentals()
     {
         return $this->hasMany(Rental::class, 'client_id', 'user_id');
@@ -252,5 +256,20 @@ class Client extends Model
     public function getMiddleNameAttribute()
     {
         return $this->getCustomFieldValue('middle_name');
+    }
+
+    public function bonusOperations()
+    {
+        return $this->hasMany(BonusOperation::class, 'client_id', 'user_id');
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class, 'client_id', 'user_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'client_id', 'user_id');
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\RentalResource;
+use App\Models\Payment;
 use App\Models\Rental;
 use App\Models\Client;
 use App\Models\Bike;
@@ -104,6 +105,8 @@ class RentalController extends Controller
                 'total_cost' => $priceCalculation['total_price']
             ]));
 
+            $this->createPaymentsForRental($rental);
+
             // Меняем статус байка
             $bike->status = 'renting';
             $bike->save();
@@ -146,7 +149,78 @@ class RentalController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Перерасчет платежей при изменении даты окончания аренды
+     */
+    private function recalculateRentalPayments(Rental $rental, Carbon $oldEndDate): array
+    {
+        $tariff = $rental->tariff;
+        $newEndDate = Carbon::parse($rental->planned_end_date);
+        $purpose = $rental->note ?: 'Оплата аренды велосипеда';
+
+        // Вычисляем разницу в днях между старой и новой датой окончания
+        $extensionDays = $oldEndDate->diffInDays($newEndDate);
+
+        // Если период не увеличился, не создаем новые платежи
+        if ($extensionDays <= 0) {
+            return $rental->payments->all();
+        }
+
+        // Рассчитываем стоимость дополнительного периода
+        $extensionCalculation = $this->rentalPriceService->calculateRentalPrice(
+            $tariff,
+            $oldEndDate,
+            $newEndDate
+        );
+
+        $newPayments = [];
+        $currentDate = $oldEndDate->copy();
+
+        // Создаем новые платежи только для дополнительного периода
+        $paymentDate = $oldEndDate->copy();
+        foreach ($extensionCalculation['breakdown'] as $period) {
+            if ($period['amount'] > 0) {
+                $payment = Payment::create([
+                    'client_id' => $rental->client_id,
+                    'total_amount' => $period['amount'],
+                    'paid_amount' => 0,
+                    'status' => 'unpaid',
+                    'payment_type' => 'cashless',
+                    'article' => 'bike_rental',
+                    'purpose' => "{$purpose} - {$period['description']} (продление)",
+                    'rental_id' => $rental->id,
+                    'year' => $currentDate->year,
+                    'month' => strtolower($currentDate->englishMonth),
+                    'generated_at' => $paymentDate,
+                ]);
+                if ('week' === $period['type']) {
+                    $paymentDate->addWeek();
+                } elseif ('month' === $period['type']) {
+                    $paymentDate->addMonth();
+                }
+
+                $newPayments[] = $payment;
+
+                // Обновляем дату для следующего платежа
+                if ($period['type'] === 'month') {
+                    $currentDate->addMonth();
+                } elseif ($period['type'] === 'week') {
+                    $currentDate->addWeek();
+                } else {
+                    $currentDate->addDays($period['days'] ?? 7);
+                }
+            }
+        }
+
+        // Обновляем общую стоимость аренды
+        $rental->update([
+            'total_cost' => $rental->total_cost + $extensionCalculation['total_price']
+        ]);
+
+        return array_merge($rental->payments->all(), $newPayments);
+    }
+
+    /**
+     * Обновление метода update для правильной обработки изменений дат
      */
     public function update(Request $request, Rental $rental): JsonResponse
     {
@@ -182,9 +256,61 @@ class RentalController extends Controller
 
             $oldBikeId = $rental->bike_id;
             $newBikeId = $request->bike_id ?? $rental->bike_id;
+            $oldPlannedEndDate = Carbon::parse($rental->planned_end_date);
+            $newPlannedEndDate = $request->planned_end_date
+                ? Carbon::parse($request->planned_end_date)
+                : $oldPlannedEndDate->copy();
+
+            // Проверяем, изменилась ли дата окончания или тариф
+            $dateChanged = $newPlannedEndDate->ne($oldPlannedEndDate);
+            $tariffChanged = $request->has('tariff_id') && $request->tariff_id != $rental->tariff_id;
+
+            // Сохраняем старую стоимость для возможного перерасчета
+            $oldTotalCost = $rental->total_cost;
 
             // Обновляем аренду
             $rental->update($validator->validated());
+
+            // Если изменился тариф, полностью пересчитываем стоимость
+            if ($tariffChanged && $rental->isActive()) {
+                $tariff = $rental->tariff;
+                $startDate = Carbon::parse($rental->start_date);
+                $endDate = Carbon::parse($rental->planned_end_date);
+
+                $priceCalculation = $this->rentalPriceService->calculateRentalPrice(
+                    $tariff,
+                    $startDate,
+                    $endDate
+                );
+
+                // Обновляем общую стоимость
+                $rental->update(['total_cost' => $priceCalculation['total_price']]);
+
+                // При смене тарифа не трогаем существующие платежи
+                // Можно добавить логику для уведомления администратора о необходимости ручной корректировки
+            }
+
+            // Если увеличилась дата окончания, добавляем платежи за дополнительный период
+            if ($dateChanged && $newPlannedEndDate->gt($oldPlannedEndDate) && $rental->isActive()) {
+                $this->recalculateRentalPayments($rental, $oldPlannedEndDate);
+            }
+
+            // Если уменьшилась дата окончания, просто обновляем общую стоимость
+            // (не удаляем существующие платежи)
+            if ($dateChanged && $newPlannedEndDate->lt($oldPlannedEndDate) && $rental->isActive()) {
+                $tariff = $rental->tariff;
+                $startDate = Carbon::parse($rental->start_date);
+                $endDate = Carbon::parse($rental->planned_end_date);
+
+                $priceCalculation = $this->rentalPriceService->calculateRentalPrice(
+                    $tariff,
+                    $startDate,
+                    $endDate
+                );
+
+                // Обновляем общую стоимость
+                $rental->update(['total_cost' => $priceCalculation['total_price']]);
+            }
 
             // Если поменялся байк, обновляем статусы
             if ($oldBikeId != $newBikeId) {
@@ -204,7 +330,7 @@ class RentalController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Rental updated successfully',
-                'data' => new RentalResource($rental->load(['client', 'bike', 'tariff']))
+                'data' => new RentalResource($rental->load(['client', 'bike', 'tariff', 'payments']))
             ]);
 
         } catch (\Exception $e) {
@@ -441,6 +567,90 @@ class RentalController extends Controller
                 'message' => 'Failed to calculate price',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Создание платежей для аренды на основе тарифа и длительности
+     */
+    private function createPaymentsForRental(Rental $rental): array
+    {
+        $tariff = $rental->tariff;
+        $startDate = Carbon::parse($rental->start_date);
+        $endDate = Carbon::parse($rental->planned_end_date);
+        $purpose = $rental->note ?: 'Оплата аренды велосипеда';
+
+        // Получаем детальный расчет стоимости из сервиса
+        $priceCalculation = $this->rentalPriceService->calculateRentalPrice(
+            $tariff,
+            $startDate,
+            $endDate
+        );
+
+        $payments = [];
+        $currentDate = $startDate->copy();
+
+        // Создаем платежи на основе breakdown
+        $paymentDate = now();
+        foreach ($priceCalculation['breakdown'] as $period) {
+            if ($period['amount'] > 0) {
+                $payment = Payment::create([
+                    'client_id' => $rental->client_id,
+                    'total_amount' => $period['amount'],
+                    'paid_amount' => 0,
+                    'status' => 'unpaid',
+                    'payment_type' => 'cashless',
+                    'article' => 'bike_rental',
+                    'purpose' => "{$purpose} - {$period['description']}",
+                    'rental_id' => $rental->id,
+                    'year' => $currentDate->year,
+                    'month' => strtolower($currentDate->englishMonth),
+                    'generated_at' => $paymentDate,
+                ]);
+                $paymentDate->addWeek();
+
+                $payments[] = $payment;
+
+                // Обновляем дату для следующего платежа в зависимости от типа периода
+                if ($period['type'] === 'month') {
+                    $currentDate->addMonth();
+                } elseif ($period['type'] === 'week') {
+                    $currentDate->addWeek();
+                } else {
+                    $currentDate->addDays($period['days'] ?? 7);
+                }
+            }
+        }
+
+        // Проверяем и корректируем разницу в суммах
+        $this->adjustPaymentAmounts($rental, $payments);
+
+        return $payments;
+    }
+
+    /**
+     * Корректировка сумм платежей для соответствия общей стоимости
+     */
+    private function adjustPaymentAmounts(Rental $rental, array &$payments): void
+    {
+        if (empty($payments)) {
+            return;
+        }
+
+        $totalPaymentsAmount = array_reduce($payments, function ($sum, $payment) {
+            return $sum + $payment->total_amount;
+        }, 0);
+
+        $difference = $rental->total_cost - $totalPaymentsAmount;
+
+        if (abs($difference) > 0.01) {
+            $lastPayment = end($payments);
+            $lastPayment->update([
+                'total_amount' => $lastPayment->total_amount + $difference
+            ]);
+
+            // Обновляем объект в массиве
+            $payments[count($payments) - 1] = $lastPayment->fresh();
         }
     }
 }

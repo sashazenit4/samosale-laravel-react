@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+use App\Models\BonusOperation;
+use App\Models\BonusSystemConfig;
 use App\Models\Client;
 use App\Models\CustomClientField;
 use App\Models\ReferralInvite;
@@ -81,6 +83,8 @@ class ClientRepository
 
             // Сохраняем валидированные кастомные поля
             $this->saveValidatedCustomFields($client, $validationResult['validated_fields']);
+
+            $this->accrueRegistrationBonuses($client);
 
             return $client->load('customFields', 'referrer', 'referrals');
         });
@@ -380,5 +384,67 @@ class ClientRepository
         return Client::whereHas('referralInvites', function ($query) use ($telegramId) {
             $query->where('telegram_id', $telegramId);
         })->value('user_id');
+    }
+
+    private function accrueRegistrationBonuses(Client $client): void
+    {
+        $referralBonusConfig = BonusSystemConfig::getReferralBonus();
+        $welcomeBonus = BonusSystemConfig::getWelcomeBonus();
+
+        if ($client->referred_by) {
+            // Клиент пришел по реферальной ссылке
+            $referrerBonus = $referralBonusConfig['referrer_amount'] ?? 1500;
+            $refereeBonus = $referralBonusConfig['referee_amount'] ?? 1500;
+
+            // Начисляем бонусы приглашенному
+            $client->bonus_balance += $refereeBonus;
+            $client->save();
+
+            BonusOperation::create([
+                'client_id' => $client->user_id,
+                'amount' => $refereeBonus,
+                'type' => 'accrual',
+                'description' => 'Начисление бонусов за регистрацию по приглашению',
+                'metadata' => [
+                    'operation_type' => 'referral_registration',
+                    'referrer_id' => $client->referred_by,
+                    'bonus_amount' => $refereeBonus
+                ]
+            ]);
+
+            // Начисляем бонусы пригласившему
+            $referrer = Client::where('user_id', $client->referred_by)->first();
+            if ($referrer) {
+                $referrer->bonus_balance += $referrerBonus;
+                $referrer->save();
+
+                BonusOperation::create([
+                    'client_id' => $referrer->user_id,
+                    'amount' => $referrerBonus,
+                    'type' => 'accrual',
+                    'description' => 'Начисление бонусов за приглашение друга',
+                    'metadata' => [
+                        'operation_type' => 'referral_invite',
+                        'referee_id' => $client->user_id,
+                        'bonus_amount' => $referrerBonus
+                    ]
+                ]);
+            }
+        } else {
+            // Обычная регистрация
+            $client->bonus_balance += $welcomeBonus;
+            $client->save();
+
+            BonusOperation::create([
+                'client_id' => $client->user_id,
+                'amount' => $welcomeBonus,
+                'type' => 'accrual',
+                'description' => 'Начисление приветственных бонусов',
+                'metadata' => [
+                    'operation_type' => 'welcome_bonus',
+                    'bonus_amount' => $welcomeBonus
+                ]
+            ]);
+        }
     }
 }

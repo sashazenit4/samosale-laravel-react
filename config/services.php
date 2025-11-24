@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+
+    'tochka' => [
+        'sandbox' => [
+            'base_url' => env('TOCHKA_SANDBOX_URL', 'https://enter.tochka.com/sandbox/v2/sbp'),
+            'api_version' => env('TOCHKA_API_VERSION', 'v1.0'),
+        ],
+        'production' => [
+            'base_url' => env('TOCHKA_PRODUCTION_URL', 'https://enter.tochka.com/uapi/sbp'),
+            'api_version' => env('TOCHKA_API_VERSION', 'v1.0'),
+        ],
+        'timeout' => env('TOCHKA_TIMEOUT', 30),
+        'retry_times' => env('TOCHKA_RETRY_TIMES', 3),
+        'retry_sleep' => env('TOCHKA_RETRY_SLEEP', 100),
+    ],
 ];
