@@ -441,7 +441,6 @@ class TransactionController extends Controller
                 ], 422);
             }
 
-            // Проверяем и обрабатываем списание бонусов
             $bonusDeductAmount = $request->get('bonus_deduct_amount', 0);
             $finalAmount = $request->amount;
 
@@ -475,25 +474,18 @@ class TransactionController extends Controller
                 'expires_at' => now()->addMinutes(15),
             ]);
 
-            // Остальная логика создания QR-кода...
-            $bankService = new TochkaBankService($request->get('environment', 'sandbox'));
-            $qrCodeResult = $bankService->createQrCode($transaction);
+            $needQrCode = false;
+            if (0 < $finalAmount) {
+                $needQrCode = true;
+                $bankService = new TochkaBankService($request->get('environment', 'sandbox'));
+                $qrCodeResult = $bankService->createQrCode($transaction);
+            }
 
-            if (!isset($qrCodeResult['success'])) {
+            if (!isset($qrCodeResult['success']) && $needQrCode) {
                 DB::rollBack();
-                Log::error('Invalid QR code result format', ['result' => $qrCodeResult]);
                 return response()->json([
                     'message' => 'Неверный формат ответа от банка',
                     'error' => 'Invalid response format'
-                ], 500);
-            }
-
-            if (!$qrCodeResult['success']) {
-                DB::rollBack();
-                return response()->json([
-                    'message' => 'Ошибка при создании QR-кода',
-                    'error' => $qrCodeResult['error'] ?? 'Unknown error',
-                    'code' => $qrCodeResult['code'] ?? 500
                 ], 500);
             }
 
@@ -502,16 +494,16 @@ class TransactionController extends Controller
                 'bank_response' => $qrCodeResult['response'] ?? null,
             ];
 
-            if (isset($qrCodeResult['qr_code_id'])) {
+            if (isset($qrCodeResult['qr_code_id']) && $needQrCode) {
                 $updateData['qr_code_id'] = $qrCodeResult['qr_code_id'];
             }
 
-            if (isset($qrCodeResult['qr_code_url'])) {
+            if (isset($qrCodeResult['qr_code_url']) && $needQrCode) {
                 $updateData['qr_code_url'] = $qrCodeResult['qr_code_url'];
             }
 
             // bank_transaction_id пока не устанавливаем - он придет при проверке статуса
-            if (isset($qrCodeResult['image_data'])) {
+            if (isset($qrCodeResult['image_data']) && $needQrCode) {
                 $imageData = $qrCodeResult['image_data'];
                 if (isset($imageData['content'])) {
                     $updateData['image_data'] = $imageData['content'];
@@ -534,10 +526,6 @@ class TransactionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Transaction creation with bonus deduction failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
 
             return response()->json([
                 'message' => 'Ошибка при создании транзакции со списанием бонусов',
@@ -573,12 +561,20 @@ class TransactionController extends Controller
             }
 
             // Обновляем платеж
-            $newPaidAmount = $payment->paid_amount + $payment->total_amount;
+            $newPaidAmount = $payment->paid_amount + $bonusDeductAmount;
+            if ($newPaidAmount === $payment->total_amount) {
+                $status = 'paid';
+            } else {
+                $status = 'partially_paid';
+            }
+
             $payment->update([
                 'paid_amount' => $newPaidAmount,
                 'paid_at' => now(),
-                'status' => 'paid'
+                'status' => $status,
             ]);
+
+            DB::commit();
 
             return response()->json([
                 'message' => 'Транзакция успешно создана (полная оплата бонусами)',
