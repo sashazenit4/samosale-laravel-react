@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 class BonusController extends Controller
 {
     /**
-     * Списание бонусов при создании транзакции
+     * Списание бонусов при создании транзакции (улучшенная версия)
      */
     public function deductBonusForTransaction($transactionId, $deductAmount)
     {
@@ -27,13 +27,24 @@ class BonusController extends Controller
                 throw new \Exception('Недостаточно бонусов для списания');
             }
 
+            // Проверяем, не списаны ли уже бонусы за эту транзакцию
+            $existingDeduction = BonusOperation::where('transaction_id', $transaction->id)
+                ->where('type', 'deduction')
+                ->exists();
+
+            if ($existingDeduction) {
+                throw new \Exception('Бонусы уже списаны за эту транзакцию');
+            }
+
             // Списание бонусов (из bonus_balance)
             $client->bonus_balance -= $deductAmount;
             $client->save();
 
-            // Обновляем транзакцию
-            $transaction->bonus_deduct_amount = $deductAmount;
-            $transaction->save();
+            // Обновляем транзакцию (если еще не обновлено)
+            if ($transaction->bonus_deduct_amount != $deductAmount) {
+                $transaction->bonus_deduct_amount = $deductAmount;
+                $transaction->save();
+            }
 
             // Создаем запись в истории бонусов
             BonusOperation::create([
@@ -41,11 +52,13 @@ class BonusController extends Controller
                 'transaction_id' => $transaction->id,
                 'amount' => $deductAmount,
                 'type' => 'deduction',
-                'description' => 'Списание бонусов для транзакции',
+                'description' => 'Списание бонусов для оплаты транзакции',
                 'metadata' => [
                     'transaction_id' => $transaction->id,
                     'payment_id' => $transaction->payment_id,
-                    'deducted_amount' => $deductAmount
+                    'transaction_amount' => $transaction->amount,
+                    'deducted_amount' => $deductAmount,
+                    'final_amount_paid' => $transaction->amount
                 ]
             ]);
 
@@ -55,11 +68,19 @@ class BonusController extends Controller
                 'success' => true,
                 'message' => 'Бонусы успешно списаны',
                 'bonus_balance' => $client->bonus_balance,
-                'real_balance' => $client->balance
+                'real_balance' => $client->balance,
+                'deducted_amount' => $deductAmount
             ];
 
         } catch (\Exception $e) {
             DB::rollBack();
+
+            Log::error('Bonus deduction failed', [
+                'transaction_id' => $transactionId,
+                'deduct_amount' => $deductAmount,
+                'error' => $e->getMessage()
+            ]);
+
             return [
                 'success' => false,
                 'message' => 'Ошибка при списании бонусов: ' . $e->getMessage()

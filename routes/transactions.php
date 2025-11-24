@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum', 'api'])->group(function () {
     Route::apiResource('transactions', TransactionController::class);
+    Route::post('transactions/with-bonus', [TransactionController::class, 'storeWithBonusDeduction']);
     Route::get('transactions/telegram/{telegramId}', [TransactionController::class, 'byTelegramId']);
     Route::post('transactions/{transaction}/check-status', [TransactionController::class, 'checkStatus']);
     Route::post('transactions/check-multiple-status', [TransactionController::class, 'checkMultipleStatus']);
