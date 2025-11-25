@@ -175,6 +175,16 @@ class Client extends Model
         static::created(function ($client) {
             ReferralInvite::where('telegram_id', $client->telegram_id)->delete();
         });
+
+        static::deleting(function ($client) {
+            $client->bonusOperations()->delete();
+            $client->customFields()->delete();
+            $client->transactions()->delete();
+            $client->payments()->delete();
+            $client->referralInvites()->delete();
+            $client->referrals()->update(['referred_by' => null]);
+            $client->rentals()->delete();
+        });
     }
 
     /**
