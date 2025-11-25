@@ -1,16 +1,14 @@
 <?php
 
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\ClientController;
 use App\Http\Controllers\BikeController;
-use App\Http\Controllers\TariffController;
 use App\Http\Controllers\RentalController;
 
 use Illuminate\Http\Request;
 use App\Models\Client;
 use App\Models\Bike;
-use App\Models\Tariff;
 use App\Models\Rental;
 
 use App\Http\Requests\TariffRequest;
@@ -38,7 +36,7 @@ Route::get('/rents', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+        return Redirect::away('/rents');
     })->name('dashboard');
 });
 
