@@ -17,3 +17,4 @@ require __DIR__.'/bank-configuration.php';
 require __DIR__.'/transactions.php';
 require __DIR__.'/bonuses.php';
 require __DIR__.'/users.php';
+require __DIR__.'/bonus-config.php';
