@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\RentalContractController;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -234,3 +235,9 @@ Route::middleware('auth')->get('/rents', function (Request $request) {
         'tariffs_options' => $tariffs,
     ]);
 })->name('rents.index');
+
+//Route::get('/rentals/{rental}/generate-contract', [RentalContractController::class, 'generateRentalContract'])
+//    ->name('rentals.generate-contract');
+//
+//Route::get('/rentals/{rental}/preview-contract', [RentalContractController::class, 'previewRentalContract'])
+//    ->name('rentals.preview-contract');
