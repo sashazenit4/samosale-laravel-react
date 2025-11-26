@@ -846,15 +846,13 @@ export const rentsColumns = (
                     )}
                 </Col>
                 <Col span={18}>
-                    {record.status === 'active' && (
-                        <Button
-                            size="small"
-                            type="link"
-                            onClick={() => getDocument(record.id)}
-                        >
-                            Договор
-                        </Button>
-                    )}
+                    <Button
+                        size="small"
+                        type="link"
+                        onClick={() => getDocument(record.id)}
+                    >
+                        Договор
+                    </Button>
                 </Col>
             </Row>
         ),

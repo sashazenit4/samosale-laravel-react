@@ -276,7 +276,7 @@ export default function Rents() {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/rentals/${rentalId}/generate-contract`;
-        form.target = '_blank'; // открываем в новой вкладке
+        form.target = '_blank';
         form.style.display = 'none';
 
         const csrfToken = document
@@ -289,17 +289,10 @@ export default function Rents() {
             form.appendChild(input);
         }
 
-        // Можно передать доп. параметры
-        // const hiddenInput = document.createElement('input');
-        // hiddenInput.name = 'format';
-        // hiddenInput.value = 'pdf';
-        // form.appendChild(hiddenInput);
-
         document.body.appendChild(form);
         form.submit();
         document.body.removeChild(form);
 
-        // Опционально — маленькое уведомление
         message.success('Договор открывается в новой вкладке');
     };
 
@@ -369,9 +362,9 @@ export default function Rents() {
                         dataSource={rents?.data}
                         rowKey="id"
                         pagination={{
-                            current: rents?.current_page || 1,
-                            pageSize: rents?.per_page || 10,
-                            total: rents?.total || 0,
+                            current: rents?.meta?.current_page || 1,
+                            pageSize: rents?.meta?.per_page || 10,
+                            total: rents?.meta?.total || 0,
                             showQuickJumper: true,
                         }}
                         onChange={handleTableChange}

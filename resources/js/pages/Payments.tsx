@@ -120,11 +120,11 @@ export default function Payments() {
                         dataSource={payments?.data || []}
                         rowKey="id"
                         scroll={{ x: 1400 }}
-                        // pagination={{
-                        //     current: payments.current_page,
-                        //     pageSize: payments.per_page,
-                        //     total: payments.total,
-                        // }}
+                        pagination={{
+                            current: payments.meta?.current_page,
+                            pageSize: payments.meta?.per_page,
+                            total: payments.meta?.total,
+                        }}
                         onChange={(pagination) => {
                             router.get(
                                 '/payments',

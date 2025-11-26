@@ -155,7 +155,7 @@ class RentalController extends Controller
     {
         $tariff = $rental->tariff;
         $newEndDate = Carbon::parse($rental->planned_end_date);
-        $purpose = $rental->note ?: 'Оплата аренды велосипеда';
+        $purpose = 'Услуги проката';
 
         // Вычисляем разницу в днях между старой и новой датой окончания
         $extensionDays = $oldEndDate->diffInDays($newEndDate);
@@ -578,7 +578,7 @@ class RentalController extends Controller
         $tariff = $rental->tariff;
         $startDate = Carbon::parse($rental->start_date);
         $endDate = Carbon::parse($rental->planned_end_date);
-        $purpose = $rental->note ?: 'Оплата аренды велосипеда';
+        $purpose = 'Услуги проката';
 
         // Получаем детальный расчет стоимости из сервиса
         $priceCalculation = $this->rentalPriceService->calculateRentalPrice(
