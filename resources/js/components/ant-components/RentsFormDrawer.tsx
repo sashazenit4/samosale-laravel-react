@@ -265,10 +265,10 @@ const RentFormDrawer: React.FC<RentFormDrawerProps> = ({
               dayjs())
             : dayjs(),
         planned_end_date: isEditing
-            ? parseDate(initialValues?.planned_end_date as string)
+            ? parseDate(initialValues?.planned_end_date)
             : null,
         actual_end_date: isEditing
-            ? parseDate(initialValues?.planned_end_date as string)
+            ? parseDate(initialValues?.planned_end_date)
             : null,
         rental_period: '1week',
         battery_count: 1,

@@ -6,8 +6,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTransactionRequest;
 use App\Http\Requests\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
-use App\Models\BankConfiguration;
-use App\Models\Client;
 use App\Models\Payment;
 use App\Models\Transaction;
 use App\Services\TochkaBankService;
@@ -213,8 +211,7 @@ class TransactionController extends Controller
                 ], 422);
             }
 
-            $config = BankConfiguration::where('is_active', 1)->first();
-            $bankService = new TochkaBankService($config->environment);
+            $bankService = new TochkaBankService();
             $statusResult = $bankService->checkPaymentStatus($transaction->qr_code_id);
 
             if ($statusResult['success']) {
@@ -299,7 +296,7 @@ class TransactionController extends Controller
 
             $qrCodeIds = $transactions->pluck('qr_code_id')->toArray();
 
-            $bankService = new TochkaBankService();
+            $bankService = new TochkaBankService('production');
             $statusResult = $bankService->checkMultiplePaymentStatus($qrCodeIds);
 
             if (!$statusResult['success']) {
@@ -378,6 +375,30 @@ class TransactionController extends Controller
     }
 
     /**
+     * Обработка завершенной транзакции
+     */
+    private function processCompletedTransaction(Transaction $transaction): void
+    {
+        DB::transaction(function () use ($transaction) {
+            $payment = $transaction->payment;
+
+            // Обновляем оплаченную сумму
+            $newPaidAmount = $payment->paid_amount + $transaction->amount;
+            $payment->update([
+                'paid_amount' => $newPaidAmount,
+                'paid_at' => now(),
+            ]);
+
+            Log::info('Payment updated after completed transaction', [
+                'transaction_id' => $transaction->id,
+                'payment_id' => $payment->id,
+                'amount' => $transaction->amount,
+                'new_paid_amount' => $newPaidAmount
+            ]);
+        });
+    }
+
+    /**
      * Отмена транзакции
      */
     public function cancel(Transaction $transaction): JsonResponse
@@ -423,209 +444,5 @@ class TransactionController extends Controller
         $transactions = $query->paginate($request->get('per_page', 15));
 
         return TransactionResource::collection($transactions);
-    }
-
-    /**
-     * Создание транзакции с учетом списания бонусов
-     */
-    public function storeWithBonusDeduction(StoreTransactionRequest $request): JsonResponse
-    {
-        try {
-            DB::beginTransaction();
-
-            $payment = Payment::findOrFail($request->payment_id);
-
-            if (!Transaction::canCreateForPayment($payment)) {
-                return response()->json([
-                    'message' => 'Невозможно создать транзакцию для этого платежа.'
-                ], 422);
-            }
-
-            $bonusDeductAmount = $request->get('bonus_deduct_amount', 0);
-            $finalAmount = $request->amount;
-
-            if ($bonusDeductAmount > 0) {
-                $client = Client::where('user_id', $payment->client_id)->first();
-
-                if (!$client || $client->bonus_balance < $bonusDeductAmount) {
-                    return response()->json([
-                        'message' => 'Недостаточно бонусов для списания'
-                    ], 422);
-                }
-
-                // Уменьшаем сумму транзакции на сумму бонусов
-                $finalAmount = max(0, $request->amount - $bonusDeductAmount);
-
-                if ($finalAmount == 0) {
-                    // Если сумма после списания бонусов равна 0, сразу отмечаем как оплаченную
-                    return $this->createZeroAmountTransaction($payment, $bonusDeductAmount);
-                }
-            }
-
-            // Создаем транзакцию
-            $transaction = Transaction::create([
-                'payment_id' => $payment->id,
-                'client_id' => $payment->client_id,
-                'amount' => $finalAmount,
-                'bonus_deduct_amount' => $bonusDeductAmount,
-                'status' => 'pending',
-                'type' => 'payment',
-                'description' => $request->description ?? "Оплата платежа #{$payment->id}",
-                'expires_at' => now()->addMinutes(15),
-            ]);
-
-            $needQrCode = false;
-            if (0 < $finalAmount) {
-                $needQrCode = true;
-                $bankService = new TochkaBankService($request->get('environment', 'sandbox'));
-                $qrCodeResult = $bankService->createQrCode($transaction);
-            }
-
-            if (!isset($qrCodeResult['success']) && $needQrCode) {
-                DB::rollBack();
-                return response()->json([
-                    'message' => 'Неверный формат ответа от банка',
-                    'error' => 'Invalid response format'
-                ], 500);
-            }
-
-            // Обновляем транзакцию данными от банка
-            $updateData = [
-                'bank_response' => $qrCodeResult['response'] ?? null,
-            ];
-
-            if (isset($qrCodeResult['qr_code_id']) && $needQrCode) {
-                $updateData['qr_code_id'] = $qrCodeResult['qr_code_id'];
-            }
-
-            if (isset($qrCodeResult['qr_code_url']) && $needQrCode) {
-                $updateData['qr_code_url'] = $qrCodeResult['qr_code_url'];
-            }
-
-            // bank_transaction_id пока не устанавливаем - он придет при проверке статуса
-            if (isset($qrCodeResult['image_data']) && $needQrCode) {
-                $imageData = $qrCodeResult['image_data'];
-                if (isset($imageData['content'])) {
-                    $updateData['image_data'] = $imageData['content'];
-                }
-                if (isset($imageData['mediaType'])) {
-                    $updateData['image_media_type'] = $imageData['mediaType'];
-                }
-            }
-
-            $transaction->update($updateData);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Транзакция успешно создана',
-                'data' => new TransactionResource($transaction->load(['payment', 'client'])),
-                'bonus_deducted' => $bonusDeductAmount,
-                'final_amount' => $finalAmount
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'message' => 'Ошибка при создании транзакции со списанием бонусов',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Создание транзакции с нулевой суммой (полная оплата бонусами)
-     */
-    private function createZeroAmountTransaction(Payment $payment, float $bonusDeductAmount): JsonResponse
-    {
-        try {
-            // Создаем транзакцию с нулевой суммой
-            $transaction = Transaction::create([
-                'payment_id' => $payment->id,
-                'client_id' => $payment->client_id,
-                'amount' => 0,
-                'bonus_deduct_amount' => $bonusDeductAmount,
-                'status' => 'completed',
-                'type' => 'payment',
-                'description' => "Полная оплата бонусами платежа #{$payment->id}",
-                'paid_at' => now(),
-            ]);
-
-            // Сразу списываем бонусы
-            $bonusController = new BonusController();
-            $bonusResult = $bonusController->deductBonusForTransaction($transaction->id, $bonusDeductAmount);
-
-            if (!$bonusResult['success']) {
-                throw new \Exception('Ошибка списания бонусов: ' . $bonusResult['message']);
-            }
-
-            // Обновляем платеж
-            $newPaidAmount = $payment->paid_amount + $bonusDeductAmount;
-            if ($newPaidAmount === $payment->total_amount) {
-                $status = 'paid';
-            } else {
-                $status = 'partially_paid';
-            }
-
-            $payment->update([
-                'paid_amount' => $newPaidAmount,
-                'paid_at' => now(),
-                'status' => $status,
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Транзакция успешно создана (полная оплата бонусами)',
-                'data' => new TransactionResource($transaction->load(['payment', 'client'])),
-                'bonus_deducted' => $bonusDeductAmount
-            ], 201);
-
-        } catch (\Exception $e) {
-            throw $e;
-        }
-    }
-
-    /**
-     * Обновленный метод обработки завершенной транзакции с бонусами
-     */
-    private function processCompletedTransaction(Transaction $transaction): void
-    {
-        DB::transaction(function () use ($transaction) {
-            $payment = $transaction->payment;
-
-            // Обновляем оплаченную сумму
-            $newPaidAmount = $payment->paid_amount + $transaction->amount;
-            $payment->update([
-                'paid_amount' => $newPaidAmount,
-                'paid_at' => now(),
-            ]);
-
-            // Если есть списание бонусов, обрабатываем его
-            if ($transaction->bonus_deduct_amount > 0) {
-                $bonusController = new BonusController();
-                $bonusResult = $bonusController->deductBonusForTransaction(
-                    $transaction->id,
-                    $transaction->bonus_deduct_amount
-                );
-
-                if (!$bonusResult['success']) {
-                    Log::error('Bonus deduction failed for completed transaction', [
-                        'transaction_id' => $transaction->id,
-                        'bonus_amount' => $transaction->bonus_deduct_amount,
-                        'error' => $bonusResult['message']
-                    ]);
-                }
-            }
-
-            Log::info('Payment updated after completed transaction', [
-                'transaction_id' => $transaction->id,
-                'payment_id' => $payment->id,
-                'amount' => $transaction->amount,
-                'bonus_deducted' => $transaction->bonus_deduct_amount,
-                'new_paid_amount' => $newPaidAmount
-            ]);
-        });
     }
 }

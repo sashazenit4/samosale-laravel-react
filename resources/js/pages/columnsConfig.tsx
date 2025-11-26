@@ -170,7 +170,8 @@ export const clientsColumns = (
         render: (value: any) => {
             const text =
                 (value || []).find(
-                    (item) => item.field_name === 'attraction_source',
+                    (item: { field_name: string }) =>
+                        item.field_name === 'attraction_source',
                 )?.field_value || '-';
             const options = {
                 реклама_интернет: 'Реклама в интернете',
@@ -454,100 +455,182 @@ export const tariffColumns = (
     },
 ];
 
-export const paymentsColumns = (openDrawer: (record: any) => void) => [
+// resources/js/pages/payments/columns.tsx
+
+import 'dayjs/locale/ru';
+dayjs.locale('ru');
+
+interface PaymentRecord {
+    id: number;
+    month_ru?: string;
+    month?: string;
+    year: string;
+    total_amount: number;
+    paid_amount: number;
+    remaining_amount: number;
+    payment_type?: 'card' | 'cash' | 'bank_transfer';
+    payment_type_ru?: string;
+    article_ru?: string;
+    purpose?: string;
+    status: 'paid' | 'unpaid';
+    status_ru?: string;
+    generated_at?: string | null;
+    сreated_at?: string | null;
+    paid_at?: string | null;
+    client?: {
+        full_name?: string;
+        name?: string;
+        phone_number?: string;
+    } | null;
+}
+
+const paymentTypeMap: Record<'card' | 'cash' | 'bank_transfer', string> = {
+    card: 'Картой',
+    cash: 'Наличными',
+    bank_transfer: 'Перевод',
+};
+
+export const paymentsColumns = (
+    onEdit: (record: PaymentRecord) => void,
+    onDelete: (id: number) => void,
+) => [
     {
         title: 'Месяц',
-        dataIndex: 'month',
-        key: 'month',
-        fixed: 'left',
+        width: 100,
+        fixed: 'left' as const,
+        render: (_: any, record: PaymentRecord) =>
+            record.month_ru || record.month || '—',
+    },
+    {
+        title: 'Клиент',
+        width: 230,
+        render: (_: any, record: PaymentRecord) => (
+            <div>
+                <div className="font-medium">
+                    {record.client?.full_name || record.client?.name || '—'}
+                </div>
+                {record.client?.phone_number && (
+                    <div className="text-xs text-gray-500">
+                        {record.client.phone_number}
+                    </div>
+                )}
+            </div>
+        ),
     },
     {
         title: 'Статус',
-        dataIndex: 'status',
-        key: 'status',
-        render: (text: string) => {
-            const statusOptions: Record<
-                string,
-                { label: string; color: string }
-            > = {
-                paid: { label: 'Оплачено', color: 'green' },
-                unpaid: { label: 'Не оплачено', color: 'red' },
-            };
-            const { label, color } = statusOptions[text] || {
-                label: text,
-                color: 'default',
-            };
+        width: 140,
+        render: (_: any, record: PaymentRecord) => {
+            const label =
+                record.status_ru ||
+                (record.status === 'paid' ? 'Оплачено' : 'Не оплачено');
+            const color = record.status === 'paid' ? 'green' : 'red';
             return <Tag color={color}>{label}</Tag>;
         },
     },
     {
         title: 'Год',
         dataIndex: 'year',
-        key: 'year',
-    },
-    {
-        title: 'Дата формирования',
-        dataIndex: 'formation_date',
-        key: 'formation_date',
-        render: (text: string | null) => text || '-',
-    },
-    {
-        title: 'Дата оплаты',
-        dataIndex: 'payment_date',
-        key: 'payment_date',
-        render: (text: string | null) => text || '-',
+        width: 80,
+        align: 'center' as const,
     },
     {
         title: 'Сумма',
-        dataIndex: 'amount',
-        key: 'amount',
-        render: (text: number) => `${text} ₽`,
+        width: 140,
+        align: 'right' as const,
+        render: (_: any, record: PaymentRecord) => (
+            <div>
+                <div className="font-medium">
+                    {record.total_amount.toLocaleString()} ₽
+                </div>
+                {record.remaining_amount > 0 && (
+                    <div className="text-xs font-medium text-red-600">
+                        Осталось: {record.remaining_amount.toLocaleString()} ₽
+                    </div>
+                )}
+            </div>
+        ),
+    },
+    {
+        title: 'Оплачено',
+        width: 110,
+        align: 'right' as const,
+        render: (_: any, record: PaymentRecord) => (
+            <span
+                className={
+                    record.paid_amount > 0 ? 'font-medium text-green-600' : ''
+                }
+            >
+                {record.paid_amount.toLocaleString()} ₽
+            </span>
+        ),
     },
     {
         title: 'Тип оплаты',
-        dataIndex: 'payment_type',
-        key: 'payment_type',
-        render: (text: string) => {
-            const typeOptions: Record<string, string> = {
-                card: 'Картой',
-                cash: 'Наличными',
-                bank_transfer: 'Банковский перевод',
-            };
-            return typeOptions[text] || text;
-        },
-    },
-    {
-        title: 'Контрагент',
-        dataIndex: 'counterparty',
-        key: 'counterparty',
+        width: 130,
+        render: (_: any, record: PaymentRecord) =>
+            record.payment_type_ru ||
+            (record.payment_type ? paymentTypeMap[record.payment_type] : '—'),
     },
     {
         title: 'Статья',
-        dataIndex: 'category',
-        key: 'category',
+        dataIndex: 'article_ru',
+        width: 160,
+        render: (text: string) => text || '—',
     },
     {
-        title: 'Назначение платежа',
+        title: 'Назначение',
         dataIndex: 'purpose',
-        key: 'purpose',
+        width: 300,
+        ellipsis: { showTitle: true },
+        render: (text: string) => text || '—',
+    },
+    {
+        title: 'Плановая дата оплаты',
+        width: 140,
+        render: (_: any, record: PaymentRecord) =>
+            record.generated_at
+                ? dayjs(record.generated_at).format('DD MMM YYYY')
+                : '—',
+    },
+    {
+        title: 'Сформировано',
+        width: 140,
+        render: (_: any, record: PaymentRecord) =>
+            record.generated_at
+                ? dayjs(record.сreated_at).format('DD MMM YYYY')
+                : '—',
+    },
+    {
+        title: 'Оплачен',
+        width: 150,
+        render: (_: any, record: PaymentRecord) =>
+            record.paid_at
+                ? dayjs(record.paid_at).format('DD MMM YYYY HH:mm')
+                : '—',
     },
     {
         title: 'Действия',
         key: 'actions',
-        fixed: 'right',
-        width: 120,
-        render: (_: any, record: any) => (
-            <Space>
+        fixed: 'right' as const,
+        width: 100,
+        render: (_: any, record: PaymentRecord) => (
+            <Space size="small">
                 <Button
                     type="text"
+                    size="small"
                     icon={<EditOutlined />}
-                    onClick={() => openDrawer(record)}
+                    onClick={() => onEdit(record)}
                 />
-                <Button
-                    type="text"
-                    icon={<DeleteOutlined />}
-                    onClick={() => console.log(`Удалить платеж ${record.id}`)}
-                />
+                {/* Раскомментируй, когда включишь удаление */}
+                {/* <Popconfirm
+                    title="Удалить платёж?"
+                    onConfirm={() => onDelete(record.id)}
+                    okText="Да"
+                    cancelText="Нет"
+                >
+                    <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm> */}
             </Space>
         ),
     },
@@ -558,6 +641,7 @@ export const rentsColumns = (
     openExtend: (record: any) => void,
     openDelete: (record: any) => void,
     openPaidModal: (record: any) => void,
+    getDocument: (id: string) => void,
 ) => [
     {
         title: 'ИД',
@@ -758,6 +842,17 @@ export const rentsColumns = (
                             onClick={() => openExtend(record)}
                         >
                             Продлить
+                        </Button>
+                    )}
+                </Col>
+                <Col span={18}>
+                    {record.status === 'active' && (
+                        <Button
+                            size="small"
+                            type="link"
+                            onClick={() => getDocument(record.id)}
+                        >
+                            Договор
                         </Button>
                     )}
                 </Col>

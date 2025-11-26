@@ -272,11 +272,43 @@ export default function Rents() {
         );
     }
 
+    const getDocument = (rentalId: string | number) => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/rentals/${rentalId}/generate-contract`;
+        form.target = '_blank'; // открываем в новой вкладке
+        form.style.display = 'none';
+
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
+        if (csrfToken) {
+            const input = document.createElement('input');
+            input.name = '_token';
+            input.value = csrfToken;
+            form.appendChild(input);
+        }
+
+        // Можно передать доп. параметры
+        // const hiddenInput = document.createElement('input');
+        // hiddenInput.name = 'format';
+        // hiddenInput.value = 'pdf';
+        // form.appendChild(hiddenInput);
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Опционально — маленькое уведомление
+        message.success('Договор открывается в новой вкладке');
+    };
+
     const columns = rentsColumns(
         openDrawer,
         openExtendModal,
         openDeleteModal,
         openPaidModal,
+        getDocument,
     );
 
     return (

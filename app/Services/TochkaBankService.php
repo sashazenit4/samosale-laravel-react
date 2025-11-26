@@ -255,7 +255,7 @@ class TochkaBankService
             $qrcIdsString = implode(',', $qrcIds);
 
             // URL для batch проверки статусов
-            $url = $this->config->getBaseUrl() . "/sbp/{$this->config->api_version}/qr-codes/payment-status?qrcIds={$qrcIdsString}";
+            $url = $this->config->getBaseUrl() . "/sbp/{$this->config->api_version}/qr-codes/{$qrcIdsString}/payment-status";
 
             Log::info('Tochka Bank Multiple Payment Status Check', [
                 'qrc_ids' => $qrcIds,

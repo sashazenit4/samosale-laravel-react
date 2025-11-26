@@ -1,17 +1,19 @@
+// components/ant-components/PaymentsFormDrawer.tsx
+
 import { Button, DatePicker, Drawer, Form, Input, Select } from 'antd';
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import React from 'react';
 
 interface PaymentFormData {
-    month: string;
+    client_id: number;
+    month: string; // 'july', 'august' и т.д.
     year: number;
-    formation_date: Dayjs | null;
-    payment_date: Dayjs | null;
-    amount: number;
-    payment_type: string;
-    counterparty: string;
-    category: string;
-    purpose: string | null;
+    generated_at: string | null; // дата формирования
+    paid_at: string | null; // дата оплаты
+    total_amount: number;
+    payment_type: 'cash' | 'card' | 'bank_transfer';
+    article: string; // 'bike_repair', 'rent' и т.д.
+    purpose: string;
     status: 'paid' | 'unpaid';
 }
 
@@ -19,9 +21,36 @@ interface PaymentFormDrawerProps {
     visible: boolean;
     onClose: () => void;
     onSubmit: (values: PaymentFormData) => void;
-    initialValues?: Partial<PaymentFormData>;
+    initialValues?: Partial<PaymentFormData> & { id?: number };
     isEditing: boolean;
+    clients: any;
 }
+
+const monthOptions = [
+    { value: 'january', label: 'Январь' },
+    { value: 'february', label: 'Февраль' },
+    { value: 'march', label: 'Март' },
+    { value: 'april', label: 'Апрель' },
+    { value: 'may', label: 'Май' },
+    { value: 'june', label: 'Июнь' },
+    { value: 'july', label: 'Июль' },
+    { value: 'august', label: 'Август' },
+    { value: 'september', label: 'Сентябрь' },
+    { value: 'october', label: 'Октябрь' },
+    { value: 'november', label: 'Ноябрь' },
+    { value: 'december', label: 'Декабрь' },
+];
+
+const articleOptions = [
+    { value: 'bike_repair', label: 'Ремонт велосипеда' },
+    { value: 'fine', label: 'Штраф' },
+];
+
+const articleOptionsWithRental = [
+    { value: 'bike_repair', label: 'Ремонт велосипеда' },
+    { value: 'bike_rental', label: 'Аренда' },
+    { value: 'fine', label: 'Штраф' },
+];
 
 const PaymentFormDrawer: React.FC<PaymentFormDrawerProps> = ({
     visible,
@@ -29,35 +58,55 @@ const PaymentFormDrawer: React.FC<PaymentFormDrawerProps> = ({
     onSubmit,
     initialValues,
     isEditing,
+    clients,
 }) => {
     const [form] = Form.useForm<PaymentFormData>();
 
-    // Устанавливаем сегодняшнюю дату по умолчанию, если не редактируем
-    const defaultValues = {
-        formation_date: isEditing ? initialValues?.formation_date : dayjs(),
-        payment_date: isEditing ? initialValues?.formation_date : dayjs(),
-        ...initialValues,
+    // При редактировании — подставляем значения, при создании — только дату формирования
+    React.useEffect(() => {
+        if (visible) {
+            if (isEditing && initialValues) {
+                form.setFieldsValue({
+                    ...initialValues,
+                    generated_at: initialValues.generated_at
+                        ? dayjs(initialValues.generated_at)
+                        : dayjs(),
+                    paid_at: initialValues.paid_at
+                        ? dayjs(initialValues.paid_at)
+                        : dayjs(),
+                });
+            } else {
+                form.resetFields();
+                form.setFieldsValue({
+                    generated_at: dayjs(),
+                    year: dayjs().year(),
+                    status: 'unpaid',
+                });
+            }
+        }
+    }, [visible, initialValues, isEditing, form]);
+
+    const handleSubmit = (values: any) => {
+        onSubmit({
+            ...values,
+            generated_at:
+                values.generated_at?.format('YYYY-MM-DD HH:mm:ss') || null,
+            paid_at: values.paid_at?.format('YYYY-MM-DD HH:mm:ss') || null,
+            total_amount: Number(values.total_amount),
+        });
+        form.resetFields();
     };
 
     return (
         <Drawer
-            title={isEditing ? 'Редактировать платеж' : 'Создать платеж'}
-            width={400}
-            onClose={() => {
-                onClose();
-                form.resetFields();
-            }}
+            title={isEditing ? 'Редактировать платёж' : 'Создать платёж'}
+            width={480}
             open={visible}
-            bodyStyle={{ paddingBottom: 80 }}
+            onClose={onClose}
+            destroyOnClose
             footer={
                 <div style={{ textAlign: 'right' }}>
-                    <Button
-                        onClick={() => {
-                            onClose();
-                            form.resetFields();
-                        }}
-                        style={{ marginRight: 8 }}
-                    >
+                    <Button onClick={onClose} style={{ marginRight: 8 }}>
                         Отмена
                     </Button>
                     <Button type="primary" onClick={() => form.submit()}>
@@ -66,126 +115,136 @@ const PaymentFormDrawer: React.FC<PaymentFormDrawerProps> = ({
                 </div>
             }
         >
-            <Form
-                form={form}
-                layout="vertical"
-                initialValues={defaultValues}
-                onFinish={(values) => {
-                    onSubmit({
-                        ...values,
-                        formation_date: values.formation_date
-                            ? values.formation_date
-                            : null,
-                        payment_date: values.payment_date
-                            ? values.payment_date
-                            : null,
-                    });
-                    form.resetFields();
-                }}
-            >
+            <Form form={form} layout="vertical" onFinish={handleSubmit}>
+                <Form.Item
+                    name="client_id"
+                    label="Клиент"
+                    rules={[{ required: true, message: 'Выберите клиента' }]}
+                >
+                    <Select
+                        showSearch
+                        placeholder="Начните вводить ФИО или телефон"
+                        optionFilterProp="children"
+                        options={clients.map((c) => ({
+                            value: c.user_id,
+                            label: `${
+                                (c?.custom_fields || []).find(
+                                    (item: any) =>
+                                        item.field_name === 'last_name',
+                                )?.field_value || ''
+                            } ${
+                                (c?.custom_fields || []).find(
+                                    (item: any) =>
+                                        item.field_name === 'first_name',
+                                )?.field_value || ''
+                            } ${
+                                (c?.custom_fields || []).find(
+                                    (item: any) =>
+                                        item.field_name === 'middle_name',
+                                )?.field_value || ''
+                            }`,
+                        }))}
+                    />
+                </Form.Item>
+
                 <Form.Item
                     name="month"
                     label="Месяц"
-                    rules={[{ required: true, message: 'Выберите месяц' }]}
+                    rules={[{ required: true }]}
                 >
-                    <Select
-                        options={[
-                            { value: 'Январь', label: 'Январь' },
-                            { value: 'Февраль', label: 'Февраль' },
-                            { value: 'Март', label: 'Март' },
-                            { value: 'Апрель', label: 'Апрель' },
-                            { value: 'Май', label: 'Май' },
-                            { value: 'Июнь', label: 'Июнь' },
-                            { value: 'Июль', label: 'Июль' },
-                            { value: 'Август', label: 'Август' },
-                            { value: 'Сентябрь', label: 'Сентябрь' },
-                            { value: 'Октябрь', label: 'Октябрь' },
-                            { value: 'Ноябрь', label: 'Ноябрь' },
-                            { value: 'Декабрь', label: 'Декабрь' },
-                        ]}
+                    <Select options={monthOptions} />
+                </Form.Item>
+
+                <Form.Item name="year" label="Год" rules={[{ required: true }]}>
+                    <Input type="number" min={2020} max={2030} />
+                </Form.Item>
+
+                <Form.Item
+                    name="generated_at"
+                    label="Дата формирования"
+                    rules={[{ required: true, message: 'Укажите дату' }]}
+                >
+                    <DatePicker
+                        showTime
+                        disabled
+                        format="DD.MM.YYYY HH:mm"
+                        style={{ width: '100%' }}
                     />
                 </Form.Item>
-                <Form.Item
-                    name="year"
-                    label="Год"
-                    rules={[{ required: true, message: 'Введите год' }]}
-                >
-                    <Input type="number" />
+
+                <Form.Item name="paid_at" label="Дата оплаты">
+                    <DatePicker
+                        showTime
+                        disabled
+                        format="DD.MM.YYYY HH:mm"
+                        style={{ width: '100%' }}
+                    />
                 </Form.Item>
+
                 <Form.Item
-                    name="formation_date"
-                    label="Дата формирования"
-                    rules={[
-                        {
-                            required: true,
-                            message: 'Выберите дату формирования',
-                        },
-                    ]}
-                >
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item name="payment_date" label="Дата оплаты">
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
-                </Form.Item>
-                <Form.Item
-                    name="amount"
-                    label="Сумма (₽)"
+                    name="total_amount"
+                    label="Сумма"
                     rules={[{ required: true, message: 'Введите сумму' }]}
                 >
-                    <Input type="number" step="0.01" />
+                    <Input type="number" suffix="₽" step="0.01" />
                 </Form.Item>
+                {isEditing && (
+                    <Form.Item
+                        name="paid_amount"
+                        label="Оплачено"
+                        rules={[{ required: true, message: 'Введите сумму' }]}
+                    >
+                        <Input type="number" suffix="₽" step="0.01" />
+                    </Form.Item>
+                )}
+
                 <Form.Item
                     name="payment_type"
                     label="Тип оплаты"
-                    rules={[{ required: true, message: 'Выберите тип оплаты' }]}
+                    rules={[{ required: true }]}
                 >
                     <Select
                         options={[
-                            { value: 'card', label: 'Картой' },
                             { value: 'cash', label: 'Наличными' },
+                            { value: 'cashless', label: 'Картой' },
                             {
-                                value: 'bank_transfer',
-                                label: 'Банковский перевод',
+                                value: 'mixed',
+                                label: 'Смешанная',
                             },
                         ]}
                     />
                 </Form.Item>
+
                 <Form.Item
-                    name="counterparty"
-                    label="Контрагент"
-                    rules={[
-                        { required: true, message: 'Введите контрагента' },
-                        { max: 255, message: 'Максимум 255 символов' },
-                    ]}
-                >
-                    <Input />
-                </Form.Item>
-                <Form.Item
-                    name="category"
+                    name="article"
                     label="Статья"
-                    rules={[
-                        { required: true, message: 'Введите статью' },
-                        { max: 255, message: 'Максимум 255 символов' },
-                    ]}
-                >
-                    <Input />
-                </Form.Item>
-                <Form.Item
-                    name="purpose"
-                    label="Назначение платежа"
-                    rules={[{ max: 255, message: 'Максимум 255 символов' }]}
-                >
-                    <Input.TextArea rows={4} />
-                </Form.Item>
-                <Form.Item
-                    name="status"
-                    label="Статус"
-                    rules={[{ required: true, message: 'Выберите статус' }]}
+                    rules={[{ required: true }]}
                 >
                     <Select
+                        disabled={
+                            isEditing && initialValues?.article == 'bike_rental'
+                        }
+                        options={
+                            isEditing
+                                ? articleOptionsWithRental
+                                : articleOptions
+                        }
+                    />
+                </Form.Item>
+
+                <Form.Item name="purpose" label="Назначение платежа">
+                    <Input.TextArea
+                        rows={3}
+                        placeholder="Например: Ремонт заднего колеса, замена спиц"
+                    />
+                </Form.Item>
+
+                <Form.Item name="status" label="Статус">
+                    <Select
+                        disabled={!isEditing}
                         options={[
-                            { value: 'paid', label: 'Оплачено' },
-                            { value: 'unpaid', label: 'Не оплачено' },
+                            { value: 'unpaid', label: 'Не оплачен' },
+                            { value: 'paid', label: 'Оплачен' },
                         ]}
                     />
                 </Form.Item>

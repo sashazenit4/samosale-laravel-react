@@ -6,13 +6,17 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\BikeController;
 use App\Http\Controllers\RentalController;
+use App\Http\Controllers\PaymentController;
 
 use Illuminate\Http\Request;
 use App\Models\Client;
 use App\Models\Bike;
 use App\Models\Rental;
+use App\Models\Payment;
 
 use App\Http\Requests\TariffRequest;
+use App\Http\Requests\StorePaymentRequest;
+use App\Http\Requests\UpdatePaymentRequest;
 
 
 Route::get('/', function () {
@@ -190,10 +194,27 @@ Route::middleware('auth')->group(function () {
         return Redirect::back()->with('message', 'Аренда обновлена');
     });
 
+    Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
+
 
     Route::delete('/rents/{rent}', function (Rental $rent) {
         app(RentalController::class)->destroy($rent);
         return Redirect::back()->with('message', 'Аренда удалена');
+    });
+
+    Route::post('/payments', function (StorePaymentRequest $request) {
+        app(PaymentController::class)->store($request);
+        return Redirect::back()->with('message', 'Платеж создан');
+    });
+
+    Route::put('/payments/{payment}', function (UpdatePaymentRequest $request, Payment $payment) {
+        app(PaymentController::class)->update($request, $payment);
+        return Redirect::back()->with('message', 'Платеж обновлен');
+    });
+
+    Route::delete('/payments/{payment}', function (Payment $payment) {
+        app(PaymentController::class)->destroy($request, $payment);
+        return Redirect::back()->with('message', 'Платеж удален');
     });
 });
 
@@ -236,8 +257,53 @@ Route::middleware('auth')->get('/rents', function (Request $request) {
     ]);
 })->name('rents.index');
 
-//Route::get('/rentals/{rental}/generate-contract', [RentalContractController::class, 'generateRentalContract'])
-//    ->name('rentals.generate-contract');
-//
-//Route::get('/rentals/{rental}/preview-contract', [RentalContractController::class, 'previewRentalContract'])
-//    ->name('rentals.preview-contract');
+use App\Http\Resources\PaymentResource;
+
+Route::middleware('auth')->group(function () {
+
+    Route::get('/payments', function (Request $request) {
+        $search = $request->query('search');
+
+        $payments = Payment::with(['client.customFields', 'rental'])
+            ->when($search, function ($query) use ($search) {
+                $query->where('purpose', 'like', "%{$search}%")
+                      ->orWhere('article_ru', 'like', "%{$search}%")
+                      ->orWhereHas('client', function ($q) use ($search) {
+                          $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('phone_number', 'like', "%{$search}%")
+                            ->orWhereHas('customFields', function ($q2) use ($search) {
+                                $q2->where('field_value', 'like', "%{$search}%");
+                            });
+                      });
+            })
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+        
+        $clients = \App\Models\Client::with('customFields')
+            ->select('user_id as user_id', 'name')
+            ->get()
+            ->map(fn($c) => [
+                'user_id'       => $c->user_id,
+                'name'          => $c->name,
+                'custom_fields' => $c->customFields->map(fn($cf) => [
+                    'field_name'  => $cf->field_name,
+                    'field_value' => $cf->field_value,
+                    'field_type'  => $cf->field_type,
+                ])->toArray(),
+            ]);
+
+        return Inertia::render('Payments', [
+            'payments' => PaymentResource::collection($payments),
+            'filters'  => $request->only('search'),
+            'clients_options' => $clients,
+        ]);
+    })->name('payments.index');
+});
+
+Route::post('/rentals/{rental}/generate-contract', [RentalContractController::class, 'generateRentalContract'])
+   ->name('rentals.generate-contract');
+
+Route::post('/rentals/{rental}/preview-contract', [RentalContractController::class, 'previewRentalContract'])
+   ->name('rentals.preview-contract');
+   
