@@ -16,7 +16,7 @@ class CustomFieldTemplatesSeeder extends Seeder
                 'label' => '№ договора',
                 'type' => 'text',
                 'validation_rules' => ['max:50'],
-                'is_required' => true,
+                'is_required' => false,
                 'sort_order' => 1,
                 'description' => 'Номер договора клиента',
             ],
