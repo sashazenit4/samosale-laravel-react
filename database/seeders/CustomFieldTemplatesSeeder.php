@@ -176,16 +176,7 @@ class CustomFieldTemplatesSeeder extends Seeder
             [
                 'name' => 'attraction_source',
                 'label' => 'Источник привлечения',
-                'type' => 'select',
-                'options' => [
-                    'реклама_интернет',
-                    'реклама_улица',
-                    'рекомендация',
-                    'социальные_сети',
-                    'поисковые_системы',
-                    'телефонный_звонок',
-                    'другое'
-                ],
+                'type' => 'text',
                 'validation_rules' => ['string', 'max:50'],
                 'is_required' => false,
                 'sort_order' => 19,
@@ -235,6 +226,15 @@ class CustomFieldTemplatesSeeder extends Seeder
                 'is_required' => false,
                 'sort_order' => 24,
                 'description' => 'Серийный номер второго аккумулятора',
+            ],
+            [
+                'name' => 'issue_date',
+                'label' => 'Дата оформления',
+                'type' => 'date',
+                'validation_rules' => ['date', 'after:service_start_date'],
+                'is_required' => false,
+                'sort_order' => 25,
+                'description' => 'Дата оформления клиента',
             ],
         ];
 
