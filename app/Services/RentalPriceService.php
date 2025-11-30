@@ -10,20 +10,22 @@ class RentalPriceService
     /**
      * Расчет стоимости аренды на основе тарифа и периода
      */
-    public function calculateRentalPrice(Tariff $tariff, Carbon $startDate, Carbon $endDate)
+    public function calculateRentalPrice(Tariff $tariff, Carbon $startDate, Carbon $endDate, int $previousDays = 0)
     {
         $days = $startDate->diffInDays($endDate);
+        $totalDays = $previousDays + $days;
 
         // Базовая стоимость по тарифу
-        $basePrice = $this->calculateBasePrice($tariff, $days);
+        $basePrice = $this->calculateBasePrice($tariff, $totalDays, $previousDays);
 
         // Детализированная разбивка по периодам
-        $breakdown = $this->calculateBreakdown($tariff, $days, $startDate);
+        $breakdown = $this->calculateBreakdown($tariff, $totalDays, $startDate, $previousDays);
 
         return [
             'base_price' => $basePrice,
             'total_price' => $basePrice,
             'days' => $days,
+            'total_days' => $totalDays,
             'breakdown' => $breakdown
         ];
     }
@@ -31,42 +33,43 @@ class RentalPriceService
     /**
      * Детализированная разбивка стоимости по периодам
      */
-    private function calculateBreakdown(Tariff $tariff, int $days, Carbon $startDate = null): array
+    private function calculateBreakdown(Tariff $tariff, int $totalDays, Carbon $startDate = null, int $previousDays = 0): array
     {
         $breakdown = [];
-        $remainingDays = $days;
+        $remainingDays = $totalDays - $previousDays;
         $currentDate = $startDate ? $startDate->copy() : null;
+        $currentWeek = $this->getCurrentWeek($previousDays);
 
-        if ($days <= 28) {
-            $weekNumber = 1;
-
-            while ($remainingDays > 0 && $weekNumber <= 4) {
-                $weekPriceField = "price_week{$weekNumber}";
+        if ($totalDays <= 28) {
+            while ($remainingDays > 0 && $currentWeek <= 4) {
+                $weekPriceField = "price_week{$currentWeek}";
                 $weekPrice = $tariff->$weekPriceField;
                 $periodDays = min(7, $remainingDays);
 
                 $description = $currentDate
-                    ? "{$weekNumber} неделя (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
-                    : "{$weekNumber} неделя";
+                    ? "{$currentWeek} неделя (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
+                    : "{$currentWeek} неделя";
 
                 $breakdown[] = [
                     'type' => 'week',
                     'amount' => $weekPrice,
                     'description' => $description,
-                    'days' => $periodDays
+                    'days' => $periodDays,
+                    'week_number' => $currentWeek
                 ];
 
                 $remainingDays -= $periodDays;
-                $weekNumber++;
+                $currentWeek++;
 
                 if ($currentDate) {
                     $currentDate->addDays($periodDays);
                 }
             }
         } else {
-            $fullMonths = floor($days / 30);
-            $remainingDays = $days % 30;
+            $fullMonths = floor($totalDays / 30);
+            $remainingDays = $totalDays % 30;
 
+            // Расчет месяцев
             for ($i = 1; $i <= $fullMonths; $i++) {
                 $description = $currentDate
                     ? "Месяц {$i} (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addMonth()->format('d.m') . ")"
@@ -86,26 +89,27 @@ class RentalPriceService
 
             // Добавляем оставшиеся дни как недельные периоды
             if ($remainingDays > 0) {
-                $weekNumber = 1;
+                $currentWeek = $this->getCurrentWeek($fullMonths * 30);
 
-                while ($remainingDays > 0 && $weekNumber <= 4) {
-                    $weekPriceField = "price_week{$weekNumber}";
+                while ($remainingDays > 0 && $currentWeek <= 4) {
+                    $weekPriceField = "price_week{$currentWeek}";
                     $weekPrice = $tariff->$weekPriceField;
                     $periodDays = min(7, $remainingDays);
 
                     $description = $currentDate
-                        ? "{$weekNumber} неделя (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
-                        : "{$weekNumber} неделя";
+                        ? "{$currentWeek} неделя (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
+                        : "{$currentWeek} неделя";
 
                     $breakdown[] = [
                         'type' => 'week',
                         'amount' => $weekPrice,
                         'description' => $description,
-                        'days' => $periodDays
+                        'days' => $periodDays,
+                        'week_number' => $currentWeek
                     ];
 
                     $remainingDays -= $periodDays;
-                    $weekNumber++;
+                    $currentWeek++;
 
                     if ($currentDate) {
                         $currentDate->addDays($periodDays);
@@ -118,50 +122,92 @@ class RentalPriceService
     }
 
     /**
-     * Расчет базовой стоимости по тарифу
+     * Расчет базовой стоимости по тарифу с учетом предыдущих дней
      */
-    private function calculateBasePrice(Tariff $tariff, int $days)
+    private function calculateBasePrice(Tariff $tariff, int $totalDays, int $previousDays = 0)
     {
-        if ($days <= 7) {
+        if ($totalDays <= 7) {
             return $tariff->price_week1;
-        } elseif ($days <= 14) {
-            return $tariff->price_week2 + $tariff->price_week1;
-        } elseif ($days <= 21) {
-            return $tariff->price_week3 + $tariff->price_week2 + $tariff->price_week1;
-        } elseif ($days <= 28) {
-            return $tariff->price_week4 + $tariff->price_week3 + $tariff->price_week2 + $tariff->price_week1;
+        } elseif ($totalDays <= 14) {
+            return $previousDays < 7
+                ? $tariff->price_week1 + $tariff->price_week2
+                : $tariff->price_week2;
+        } elseif ($totalDays <= 21) {
+            if ($previousDays < 7) {
+                return $tariff->price_week1 + $tariff->price_week2 + $tariff->price_week3;
+            } elseif ($previousDays < 14) {
+                return $tariff->price_week2 + $tariff->price_week3;
+            } else {
+                return $tariff->price_week3;
+            }
+        } elseif ($totalDays <= 28) {
+            if ($previousDays < 7) {
+                return $tariff->price_week1 + $tariff->price_week2 + $tariff->price_week3 + $tariff->price_week4;
+            } elseif ($previousDays < 14) {
+                return $tariff->price_week2 + $tariff->price_week3 + $tariff->price_week4;
+            } elseif ($previousDays < 21) {
+                return $tariff->price_week3 + $tariff->price_week4;
+            } else {
+                return $tariff->price_week4;
+            }
         } else {
-            return $this->calculateMonthlyPrice($tariff, $days);
+            return $this->calculateMonthlyPrice($tariff, $totalDays, $previousDays);
         }
     }
 
     /**
-     * Расчет стоимости для периодов больше 28 дней
+     * Расчет стоимости для периодов больше 28 дней с учетом предыдущих дней
      */
-    private function calculateMonthlyPrice(Tariff $tariff, int $days)
+    private function calculateMonthlyPrice(Tariff $tariff, int $totalDays, int $previousDays = 0)
     {
         // Количество полных месяцев
-        $fullMonths = floor($days / 30);
-        $remainingDays = $days % 30;
+        $fullMonths = floor($totalDays / 30);
+        $remainingDays = $totalDays % 30;
 
         $totalPrice = $fullMonths * $tariff->price_month;
 
         // Добавляем стоимость за оставшиеся дни по недельной логике
         if ($remainingDays > 0) {
+            $previousWeeksDays = $previousDays % 30;
+            $currentWeek = $this->getCurrentWeek($previousWeeksDays);
+
             if ($remainingDays <= 7) {
-                $totalPrice += $tariff->price_week1;
+                $weekPriceField = "price_week{$currentWeek}";
+                $totalPrice += $tariff->$weekPriceField;
             } elseif ($remainingDays <= 14) {
-                $totalPrice += $tariff->price_week1 + $tariff->price_week2;
+                $totalPrice += $this->getWeekPriceSum($tariff, $currentWeek, 2);
             } elseif ($remainingDays <= 21) {
-                $totalPrice += $tariff->price_week1 + $tariff->price_week2 + $tariff->price_week3;
+                $totalPrice += $this->getWeekPriceSum($tariff, $currentWeek, 3);
             } elseif ($remainingDays <= 28) {
-                $totalPrice += $tariff->price_week1 + $tariff->price_week2 + $tariff->price_week3 + $tariff->price_week4;
+                $totalPrice += $this->getWeekPriceSum($tariff, $currentWeek, 4);
             } else {
                 $totalPrice += $tariff->price_month;
             }
         }
 
         return $totalPrice;
+    }
+
+    /**
+     * Получить текущую неделю на основе количества дней
+     */
+    private function getCurrentWeek(int $days): int
+    {
+        return min(4, floor(($days + 6) / 7) + 1);
+    }
+
+    /**
+     * Получить сумму цен за указанное количество недель
+     */
+    private function getWeekPriceSum(Tariff $tariff, int $startWeek, int $weeksCount)
+    {
+        $sum = 0;
+        for ($i = 0; $i < $weeksCount; $i++) {
+            $weekNumber = min(4, $startWeek + $i);
+            $weekPriceField = "price_week{$weekNumber}";
+            $sum += $tariff->$weekPriceField;
+        }
+        return $sum;
     }
 
     /**
