@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Rental;
 use App\Services\DocxRentalContractTemplateService;
 use Illuminate\Http\Request;

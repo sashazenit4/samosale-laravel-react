@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Bike;
 use PhpOffice\PhpWord\TemplateProcessor;
-use Illuminate\Support\Facades\Storage;
 
 class DocxRentalContractTemplateService
 {
@@ -83,11 +83,13 @@ class DocxRentalContractTemplateService
         // Обработка аккумуляторов
         $batteryInfo = '';
         if ($rental->battery_capacity) {
-            $batteryInfo = $rental->battery_capacity . ' Ач';
+            $batteryInfo = $rental->battery_capacity . ' Ah';
             if ($rental->batteries_count > 1) {
-                $batteryInfo .= ' × ' . $rental->batteries_count;
+                $batteryInfo .= ' (количество - ' . $rental->batteries_count . ' шт.)';
             }
         }
+
+        $bikeInfo = Bike::where('id', $rental->bike_id)->first();
 
         return [
             '№ договора' => $customFieldsArray['contract_number'] ?? 'БН',
@@ -104,9 +106,8 @@ class DocxRentalContractTemplateService
             'Адрес прописки' => $customFieldsArray['legal_address'] ?? '',
             'I' => $i,
             'O' => $o,
-            'Серийный номер' => $customFieldsArray['serial_number'] ?? '',
-            '1й аккумулятор электровелосипеда' => $batteryInfo,
-            '2й аккумулятор электровелосипеда' => '-',
+            'Серийный номер' => $bikeInfo->frame_number ?? '',
+            'Аккумулятор электровелосипеда' => $batteryInfo,
             'Начало пользования' => $startDate,
             'Конец пользования' => $endDate,
         ];
