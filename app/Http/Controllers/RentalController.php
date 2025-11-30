@@ -169,7 +169,8 @@ class RentalController extends Controller
         $extensionCalculation = $this->rentalPriceService->calculateRentalPrice(
             $tariff,
             $oldEndDate,
-            $newEndDate
+            $newEndDate,
+            abs($oldEndDate->diffInDays($rental->start_date))
         );
 
         $newPayments = [];
@@ -280,14 +281,12 @@ class RentalController extends Controller
                 $priceCalculation = $this->rentalPriceService->calculateRentalPrice(
                     $tariff,
                     $startDate,
-                    $endDate
+                    $endDate,
                 );
 
                 // Обновляем общую стоимость
                 $rental->update(['total_cost' => $priceCalculation['total_price']]);
 
-                // При смене тарифа не трогаем существующие платежи
-                // Можно добавить логику для уведомления администратора о необходимости ручной корректировки
             }
 
             // Если увеличилась дата окончания, добавляем платежи за дополнительный период
