@@ -15,4 +15,8 @@ Route::middleware(['auth:sanctum', 'api'])->group(function () {
 
     // Сгенерировать договор с кастомными данными
     Route::post('documents/rentals/{rental}/generate-custom-contract', [RentalContractController::class, 'generateCustomContract']);
+
+    Route::get('documents/rentals/{rentalId}/contract/pdf', [RentalContractController::class, 'generateRentalContractPdf']);
+    Route::post('documents/rentals/{rentalId}/contract/custom-pdf', [RentalContractController::class, 'generateCustomContractPdf']);
+    Route::get('documents/rentals/template-check/pdf', [RentalContractController::class, 'checkPdfTemplate']);
 });

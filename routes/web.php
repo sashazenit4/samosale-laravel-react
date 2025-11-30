@@ -279,7 +279,7 @@ Route::middleware('auth')->group(function () {
             ->latest()
             ->paginate(20)
             ->withQueryString();
-        
+
         $clients = \App\Models\Client::with('customFields')
             ->select('user_id as user_id', 'name')
             ->get()
@@ -306,4 +306,6 @@ Route::post('/rentals/{rental}/generate-contract', [RentalContractController::cl
 
 Route::post('/rentals/{rental}/preview-contract', [RentalContractController::class, 'previewRentalContract'])
    ->name('rentals.preview-contract');
-   
+
+Route::post('/rentals/{rentalId}/contract/pdf', [RentalContractController::class, 'generateRentalContractPdf'])
+   ->name('rentals.generate-contract-pdf');
