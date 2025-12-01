@@ -1,5 +1,4 @@
 <?php
-// app/Http/Requests/UpdatePaymentRequest.php
 
 namespace App\Http\Requests;
 
@@ -23,7 +22,7 @@ class UpdatePaymentRequest extends FormRequest
             'year' => ['sometimes', 'integer', 'min:2000', 'max:2100'],
             'total_amount' => ['sometimes', 'numeric', 'min:0'],
             'paid_amount' => ['sometimes', 'numeric', 'min:0'],
-            'payment_type' => ['sometimes', Rule::in(['cash', 'cashless', 'mixed'])],
+            'payment_type' => ['sometimes', Rule::in(['cash', 'cashless', 'mixed', 'corporate'])],
             'client_id' => ['sometimes', 'exists:clients,user_id'],
             'article' => ['sometimes', Rule::in(['bike_rental', 'bike_repair'])],
             'purpose' => ['nullable', 'string', 'max:1000'],

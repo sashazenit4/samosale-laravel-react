@@ -23,7 +23,7 @@ class StorePaymentRequest extends FormRequest
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'total_amount' => ['required', 'numeric', 'min:0'],
             'paid_amount' => ['sometimes', 'numeric', 'min:0'],
-            'payment_type' => ['required', Rule::in(['cash', 'cashless', 'mixed'])],
+            'payment_type' => ['required', Rule::in(['cash', 'cashless', 'mixed', 'corporate'])],
             'client_id' => ['required', 'exists:clients,user_id'],
             'article' => ['required', Rule::in(['bike_rental', 'bike_repair'])],
             'purpose' => ['nullable', 'string', 'max:1000'],

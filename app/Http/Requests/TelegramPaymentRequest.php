@@ -18,7 +18,7 @@ class TelegramPaymentRequest extends FormRequest
             'status' => 'sometimes|in:paid,partially_paid,unpaid',
             'year' => 'sometimes|integer|min:2020|max:2030',
             'month' => 'sometimes|in:january,february,march,april,may,june,july,august,september,october,november,december',
-            'payment_type' => 'sometimes|in:cash,cashless,mixed',
+            'payment_type' => 'sometimes|in:cash,cashless,mixed,corporate',
             'article' => 'sometimes|in:bike_rental,bike_repair',
             'start_date' => 'sometimes|date',
             'end_date' => 'sometimes|date|after_or_equal:start_date',
