@@ -317,6 +317,7 @@ class ClientRepository
     private function saveValidatedCustomFields(Client $client, array $validatedFields): void
     {
         foreach ($validatedFields as $field) {
+            $field['value'] = $this->setDefaultCustomFieldValues($client, $field);
             $client->setCustomField(
                 $field['name'],
                 $field['value'],
@@ -446,5 +447,14 @@ class ClientRepository
                 ]
             ]);
         }
+    }
+
+    private function setDefaultCustomFieldValues(Client $client, array $field): string
+    {
+        return match ($field['name']) {
+            'courier_id' => $field['value'] ?? sprintf('%s-%d', env('APP_CLIENT_PREFIX', 'КС'), $client->user_id),
+            'contract_number' => $field['value'] ?? $client->user_id,
+            default => $field['value'],
+        };
     }
 }
