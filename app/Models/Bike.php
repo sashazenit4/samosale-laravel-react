@@ -12,7 +12,17 @@ class Bike extends Model
         'bike_number',
         'frame_number',
         'status',
-        'type'
+        'type',
+        'property_1',
+        'property_2',
+        'property_3',
+        'property_4',
+        'property_5',
+        'property_6',
+        'property_7',
+        'property_8',
+        'property_9',
+        'property_10'
     ];
 
     protected $casts = [

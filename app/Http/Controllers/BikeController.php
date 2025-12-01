@@ -18,6 +18,13 @@ class BikeController extends Controller
             ->when($request->bike_number, function($query, $bikeNumber) {
                 $query->where('bike_number', 'like', "%{$bikeNumber}%");
             })
+            // Фильтрация по property полям (пример для property_1)
+            ->when($request->property_1, function($query, $property) {
+                $query->where('property_1', 'like', "%{$property}%");
+            })
+            ->when($request->property_2, function($query, $property) {
+                $query->where('property_2', 'like', "%{$property}%");
+            })
             ->get();
 
         return response()->json([
@@ -32,7 +39,17 @@ class BikeController extends Controller
             'bike_number' => 'required|string|max:255|unique:bikes',
             'frame_number' => 'required|string|max:255|unique:bikes',
             'status' => 'required|in:renting,free,stolen',
-            'type' => 'required|string|max:255'
+            'type' => 'required|string|max:255',
+            'property_1' => 'nullable|string|max:255',
+            'property_2' => 'nullable|string|max:255',
+            'property_3' => 'nullable|string|max:255',
+            'property_4' => 'nullable|string|max:255',
+            'property_5' => 'nullable|string|max:255',
+            'property_6' => 'nullable|string|max:255',
+            'property_7' => 'nullable|string|max:255',
+            'property_8' => 'nullable|string|max:255',
+            'property_9' => 'nullable|string|max:255',
+            'property_10' => 'nullable|string|max:255',
         ]);
 
         $bike = Bike::create($validated);
@@ -58,7 +75,17 @@ class BikeController extends Controller
             'bike_number' => 'sometimes|string|max:255|unique:bikes,bike_number,' . $bike->id,
             'frame_number' => 'sometimes|string|max:255|unique:bikes,frame_number,' . $bike->id,
             'status' => 'sometimes|in:renting,free,stolen',
-            'type' => 'sometimes|string|max:255'
+            'type' => 'sometimes|string|max:255',
+            'property_1' => 'nullable|string|max:255',
+            'property_2' => 'nullable|string|max:255',
+            'property_3' => 'nullable|string|max:255',
+            'property_4' => 'nullable|string|max:255',
+            'property_5' => 'nullable|string|max:255',
+            'property_6' => 'nullable|string|max:255',
+            'property_7' => 'nullable|string|max:255',
+            'property_8' => 'nullable|string|max:255',
+            'property_9' => 'nullable|string|max:255',
+            'property_10' => 'nullable|string|max:255',
         ]);
 
         $bike->update($validated);
