@@ -47,8 +47,8 @@ class RentalPriceService
                 $periodDays = min(7, $remainingDays);
 
                 $description = $currentDate
-                    ? "{$currentWeek} неделя (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
-                    : "{$currentWeek} неделя";
+                    ? "услуги проката (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
+                    : "услуги проката ";
 
                 $breakdown[] = [
                     'type' => 'week',
@@ -97,8 +97,8 @@ class RentalPriceService
                     $periodDays = min(7, $remainingDays);
 
                     $description = $currentDate
-                        ? "{$currentWeek} неделя (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
-                        : "{$currentWeek} неделя";
+                        ? "услуги проката (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
+                        : "услуги проката ";
 
                     $breakdown[] = [
                         'type' => 'week',
