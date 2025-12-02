@@ -71,6 +71,7 @@ class PaymentResource extends JsonResource
             'cash' => 'Наличная',
             'cashless' => 'Безналичная',
             'mixed' => 'Смешанная',
+            'corporate' => 'Корпоративная',
             default => $this->payment_type,
         };
     }
