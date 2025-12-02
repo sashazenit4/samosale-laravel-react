@@ -104,6 +104,36 @@ const BikeFormDrawer: React.FC<BikeFormDrawerProps> = ({
                         </Select.Option>
                     </Select>
                 </Form.Item>
+                <Form.Item name="property_1" label="Свойство 1">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_2" label="Свойство 2">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_3" label="Свойство 3">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_4" label="Свойство 4">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_5" label="Свойство 5">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_6" label="Свойство 6">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_7" label="Свойство 7">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_8" label="Свойство 8">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_9" label="Свойство 9">
+                    <Input />
+                </Form.Item>
+                <Form.Item name="property_10" label="Свойство 10">
+                    <Input />
+                </Form.Item>
             </Form>
         </Drawer>
     );

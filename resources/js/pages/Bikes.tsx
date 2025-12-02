@@ -26,6 +26,7 @@ import BikeFormDrawer from '@/components/ant-components/BikesFormDrawer';
 import EquipmentFormDrawer from '@/components/ant-components/EquipmentFormDrawer';
 import TariffFormDrawer from '@/components/ant-components/TariffFormDrawer';
 
+import ruRU from 'antd/locale/ru_RU';
 import { bikeColumns, equipmentColumns, tariffColumns } from './columnsConfig';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -190,6 +191,7 @@ export default function Bikes() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Велосипеды и оборудование" />
             <ConfigProvider
+                locale={ruRU}
                 theme={{
                     token: {
                         colorPrimary: 'oklch(0.205 0 0)',

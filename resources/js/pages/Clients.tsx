@@ -14,11 +14,14 @@ import {
     Space,
     Table,
 } from 'antd';
+import ruRU from 'antd/locale/ru_RU';
 import dayjs from 'dayjs';
+import 'dayjs/locale/ru';
 import utc from 'dayjs/plugin/utc';
 import { FilterIcon } from 'lucide-react';
 import { useState } from 'react';
 import { clientsColumns } from './columnsConfig';
+dayjs.locale('ru');
 
 dayjs.extend(utc);
 
@@ -93,11 +96,19 @@ export default function Dashboard() {
         if (!editingClient) return;
 
         const payload: any = {
-            custom_fields: Object.keys(values).map((key: string) => ({
-                name: key,
-                value: values[key],
-            })),
+            custom_fields: Object.keys(values)
+                .map((key: string) => {
+                    if (values[key]) {
+                        return {
+                            name: key,
+                            value: values[key],
+                        };
+                    }
+                })
+                .filter((item) => !!item && item.name !== 'user_id'),
         };
+
+        console.log(payload);
 
         Inertia.put(`/clients/${editingClient.user_id}`, payload, {
             preserveState: true,
@@ -120,6 +131,7 @@ export default function Dashboard() {
             'passport_issue_date',
             'service_start_date',
             'service_end_date',
+            'issue_date',
         ];
         (editingClient.custom_fields || []).forEach((item: any) => {
             if (dates.includes(item?.field_name)) {
@@ -137,6 +149,7 @@ export default function Dashboard() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Клиенты" />
             <ConfigProvider
+                locale={ruRU}
                 theme={{
                     token: {
                         colorPrimary: 'oklch(0.205 0 0)',
