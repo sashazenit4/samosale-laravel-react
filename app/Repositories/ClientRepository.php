@@ -316,6 +316,17 @@ class ClientRepository
      */
     private function saveValidatedCustomFields(Client $client, array $validatedFields): void
     {
+        $validatedFields[] = [
+            'type' => 'text',
+            'name' => 'courier_id',
+            'value' => null,
+        ];
+        $validatedFields[] = [
+            'type' => 'text',
+            'name' => 'contract_number',
+            'value' => null,
+        ];
+
         foreach ($validatedFields as $field) {
             $field['value'] = $this->setDefaultCustomFieldValues($client, $field);
             $client->setCustomField(
