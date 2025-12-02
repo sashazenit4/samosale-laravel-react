@@ -165,18 +165,16 @@ const PaymentFormDrawer: React.FC<PaymentFormDrawerProps> = ({
                     rules={[{ required: true, message: 'Укажите дату' }]}
                 >
                     <DatePicker
-                        showTime
                         disabled
-                        format="DD.MM.YYYY HH:mm"
+                        format="DD.MM.YYYY"
                         style={{ width: '100%' }}
                     />
                 </Form.Item>
 
                 <Form.Item name="paid_at" label="Дата оплаты">
                     <DatePicker
-                        showTime
-                        disabled
-                        format="DD.MM.YYYY HH:mm"
+                        disabled={!isEditing}
+                        format="DD.MM.YYYY"
                         style={{ width: '100%' }}
                     />
                 </Form.Item>
@@ -210,6 +208,10 @@ const PaymentFormDrawer: React.FC<PaymentFormDrawerProps> = ({
                             {
                                 value: 'mixed',
                                 label: 'Смешанная',
+                            },
+                            {
+                                value: 'corporate',
+                                label: 'Корпоративная',
                             },
                         ]}
                     />

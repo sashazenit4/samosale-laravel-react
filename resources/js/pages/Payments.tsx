@@ -6,6 +6,7 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Inertia } from '@inertiajs/inertia';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Button, ConfigProvider, Input, Space, Table, message } from 'antd';
+import ruRU from 'antd/locale/ru_RU';
 import { CoinsIcon } from 'lucide-react';
 import { useState } from 'react';
 import { paymentsColumns } from './columnsConfig';
@@ -75,6 +76,7 @@ export default function Payments() {
             <Head title="Платежи" />
 
             <ConfigProvider
+                locale={ruRU}
                 theme={
                     {
                         /* твоя тема */

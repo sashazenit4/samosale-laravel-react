@@ -15,6 +15,7 @@ import {
     Space,
     Table,
 } from 'antd';
+import ruRU from 'antd/locale/ru_RU';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { rentsColumns } from './columnsConfig';
@@ -296,12 +297,37 @@ export default function Rents() {
         message.success('Договор открывается в новой вкладке');
     };
 
+    const getDocumentPDF = (rentalId: string | number) => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/rentals/${rentalId}/contract/pdf`;
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
+        if (csrfToken) {
+            const input = document.createElement('input');
+            input.name = '_token';
+            input.value = csrfToken;
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        message.success('Договор открывается в новой вкладке');
+    };
+
     const columns = rentsColumns(
         openDrawer,
         openExtendModal,
         openDeleteModal,
         openPaidModal,
         getDocument,
+        getDocumentPDF,
     );
 
     return (
@@ -309,6 +335,7 @@ export default function Rents() {
             <Head title="Аренда" />
             {/* ВСЁ ВНУТРИ ConfigProvider */}
             <ConfigProvider
+                locale={ruRU}
                 theme={{
                     token: {
                         colorPrimary: 'oklch(0.205 0 0)',

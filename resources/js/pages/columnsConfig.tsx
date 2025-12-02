@@ -186,6 +186,18 @@ export const clientsColumns = (
         },
     },
     {
+        title: 'Дата оформления',
+        dataIndex: 'custom_fields',
+        key: 'issue_date',
+        render: (value: any[]) => {
+            const date = (value || []).find(
+                (item) => item.field_name === 'issue_date',
+            )?.field_value;
+            if (!date) return '—';
+            return dayjs.utc(date).format('DD.MM.YYYY');
+        },
+    },
+    {
         title: 'Начало пользования',
         dataIndex: 'custom_fields',
         key: 'service_start_date',
@@ -279,6 +291,66 @@ export const bikeColumns = (
             const color = text === 'TRAK' ? 'blue' : 'green';
             return <Tag color={color}>{map[text] || text}</Tag>;
         },
+    },
+    {
+        title: 'Свойство 1',
+        dataIndex: 'property_1',
+        key: 'property_1',
+        width: 120,
+    },
+    {
+        title: 'Свойство 2',
+        dataIndex: 'property_2',
+        key: 'property_2',
+        width: 120,
+    },
+    {
+        title: 'Свойство 3',
+        dataIndex: 'property_3',
+        key: 'property_3',
+        width: 120,
+    },
+    {
+        title: 'Свойство 4',
+        dataIndex: 'property_4',
+        key: 'property_4',
+        width: 120,
+    },
+    {
+        title: 'Свойство 5',
+        dataIndex: 'property_5',
+        key: 'property_5',
+        width: 120,
+    },
+    {
+        title: 'Свойство 6',
+        dataIndex: 'property_6',
+        key: 'property_6',
+        width: 120,
+    },
+    {
+        title: 'Свойство 7',
+        dataIndex: 'property_7',
+        key: 'property_7',
+        width: 120,
+    },
+    {
+        title: 'Свойство 8',
+        dataIndex: 'property_8',
+        key: 'property_8',
+        width: 120,
+    },
+    {
+        title: 'Свойство 9',
+        dataIndex: 'property_9',
+        key: 'property_9',
+        width: 120,
+    },
+    {
+        title: 'Свойство 10',
+        dataIndex: 'property_10',
+        key: 'property_10',
+        width: 120,
     },
     {
         title: 'Действия',
@@ -642,6 +714,7 @@ export const rentsColumns = (
     openDelete: (record: any) => void,
     openPaidModal: (record: any) => void,
     getDocument: (id: string) => void,
+    getDocumentPDF: (id: string) => void,
 ) => [
     {
         title: 'ИД',
@@ -845,13 +918,22 @@ export const rentsColumns = (
                         </Button>
                     )}
                 </Col>
-                <Col span={18}>
+                <Col span={12}>
                     <Button
                         size="small"
                         type="link"
                         onClick={() => getDocument(record.id)}
                     >
                         Договор
+                    </Button>
+                </Col>
+                <Col span={12}>
+                    <Button
+                        size="small"
+                        type="link"
+                        onClick={() => getDocumentPDF(record.id)}
+                    >
+                        Договор PDF
                     </Button>
                 </Col>
             </Row>

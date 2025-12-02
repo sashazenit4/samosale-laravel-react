@@ -1,4 +1,4 @@
-import { Button, DatePicker, Drawer, Form, Input, Select } from 'antd';
+import { Button, DatePicker, Drawer, Form, Input } from 'antd';
 import React from 'react';
 
 export interface ClientFormData {
@@ -77,29 +77,13 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                 layout="vertical"
                 initialValues={initialValues}
                 onFinish={() => {
+                    console.log('AAAA');
                     onSubmit(form.getFieldsValue());
                     form.resetFields();
                 }}
             >
-                <Form.Item
-                    name="contract_number"
-                    label="№ договора"
-                    rules={[
-                        { required: true, message: 'Введите номер договора' },
-                        { max: 50, message: 'Максимум 50 символов' },
-                    ]}
-                >
-                    <Input />
-                </Form.Item>
-                <Form.Item
-                    name="courier_id"
-                    label="ИД курьера"
-                    rules={[
-                        { required: true, message: 'Введите ИД курьера' },
-                        { max: 20, message: 'Максимум 20 символов' },
-                    ]}
-                >
-                    <Input />
+                <Form.Item name="contract_number" label="№ договора">
+                    <Input disabled={true} />
                 </Form.Item>
                 <Form.Item
                     name="last_name"
@@ -132,6 +116,7 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     name="birth_date"
                     label="Дата рождения"
                     rules={[
+                        { required: true, message: 'Введите дату рождения' },
                         { type: 'object', message: 'Выберите дату' },
                         {
                             validator: (_, value) =>
@@ -143,7 +128,7 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                         },
                     ]}
                 >
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
+                    <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item
                     name="additional_phone"
@@ -155,7 +140,10 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                 <Form.Item
                     name="relatives_phone"
                     label="Телефон знакомых"
-                    rules={[{ max: 20, message: 'Максимум 20 символов' }]}
+                    rules={[
+                        { required: true, message: 'Введите фамилию' },
+                        { max: 20, message: 'Максимум 20 символов' },
+                    ]}
                 >
                     <Input />
                 </Form.Item>
@@ -173,7 +161,6 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     name="passport_number"
                     label="Паспорт: номер"
                     rules={[
-                        { required: true, message: 'Введите номер паспорта' },
                         {
                             len: 6,
                             message: 'Номер должен содержать 6 символов',
@@ -199,6 +186,7 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     name="passport_issue_date"
                     label="Когда выдан"
                     rules={[
+                        { required: true, message: 'Введите фамилию' },
                         { type: 'object', message: 'Выберите дату' },
                         {
                             validator: (_, value) =>
@@ -210,16 +198,12 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                         },
                     ]}
                 >
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
+                    <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item
                     name="passport_department_code"
                     label="Код подразделения"
                     rules={[
-                        {
-                            required: true,
-                            message: 'Введите код подразделения',
-                        },
                         {
                             len: 7,
                             message:
@@ -246,10 +230,7 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                 <Form.Item
                     name="actual_address"
                     label="Адрес проживания"
-                    rules={[
-                        { required: true, message: 'Введите адрес проживания' },
-                        { max: 500, message: 'Максимум 500 символов' },
-                    ]}
+                    rules={[{ max: 500, message: 'Максимум 500 символов' }]}
                 >
                     <Input />
                 </Form.Item>
@@ -271,40 +252,21 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     label="Источник привлечения"
                     rules={[{ max: 50, message: 'Максимум 50 символов' }]}
                 >
-                    <Select
-                        options={[
-                            {
-                                value: 'реклама_интернет',
-                                label: 'Реклама в интернете',
-                            },
-                            {
-                                value: 'реклама_улица',
-                                label: 'Уличная реклама',
-                            },
-                            { value: 'рекомендация', label: 'Рекомендация' },
-                            {
-                                value: 'социальные_сети',
-                                label: 'Социальные сети',
-                            },
-                            {
-                                value: 'поисковые_системы',
-                                label: 'Поисковые системы',
-                            },
-                            {
-                                value: 'телефонный_звонок',
-                                label: 'Телефонный звонок',
-                            },
-                            { value: 'другое', label: 'Другое' },
-                        ]}
-                        allowClear
-                    />
+                    <Input />
+                </Form.Item>
+                <Form.Item
+                    name="issue_date"
+                    label="Дата оформления"
+                    rules={[{ type: 'object', message: 'Выберите дату' }]}
+                >
+                    <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item
                     name="service_start_date"
                     label="Начало пользования"
                     rules={[{ type: 'object', message: 'Выберите дату' }]}
                 >
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
+                    <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
                 </Form.Item>
                 <Form.Item
                     name="service_end_date"
@@ -325,7 +287,7 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                         },
                     ]}
                 >
-                    <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
+                    <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
                 </Form.Item>
             </Form>
         </Drawer>
