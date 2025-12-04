@@ -397,7 +397,9 @@ class ClientController extends Controller
     public function checkPhoneNumber(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'phone_number' => 'required|string|max:32'
+            'phone_number' => 'required|string|max:32',
+            'telegram_id' => 'int',
+            'name' => 'string|max:32',
         ]);
 
         if ($validator->fails()) {
@@ -409,10 +411,24 @@ class ClientController extends Controller
 
         $exists = $this->clientRepository->phoneNumberExists($request->phone_number);
 
-        return response()->json([
+        $result = [
             'success' => true,
             'exists' => $exists
-        ]);
+        ];
+
+        if ($exists) {
+            /**
+             * @var Client $client
+             */
+            $client = Client::where('phone_number', $request->phone_number)->first();
+            $client->update([
+                'telegram_id' => $request->telegram_id,
+                'name' => $request['name'],
+            ]);
+            $result['user'] = $client;
+        }
+
+        return response()->json($result);
     }
 
     /**
