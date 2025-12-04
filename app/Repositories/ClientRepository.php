@@ -65,7 +65,7 @@ class ClientRepository
                 $data['referral_code'] = Client::generateReferralCode();
             }
 
-            if (!isset($data['referred_by'])) {
+            if (!isset($data['referred_by']) && isset($data['telegram_id'])) {
                 $data['referred_by'] = $this->getReferredByFromInvites($data['telegram_id']);
             }
 

@@ -5,18 +5,22 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
+use App\Repositories\ClientRepository;
 use Carbon\Carbon;
 
 class ImportClientsFromExcel extends Command
 {
-    protected $signature = 'import:clients {file} {--format=csv}';
-    protected $description = 'Import clients from Excel/CSV file';
+    protected $signature = 'import:clients
+                            {file : Path to the CSV file}
+                            {--format=csv : File format (csv only)}
+                            {--skip-existing : Skip rows with existing phone numbers}
+                            {--batch-size=100 : Number of rows to process in a batch}';
+
+    protected $description = 'Import clients from Excel/CSV file using ClientRepository';
 
     // Маппинг полей CSV на поля базы данных
     private $fieldMapping = [
-        '\u{FEFF}№ договора' => 'contract_number',
+        '№ договора' => 'contract_number',
         'ИД курьера' => 'courier_id',
         'Фамилия' => 'last_name',
         'Имя' => 'first_name',
@@ -31,35 +35,31 @@ class ImportClientsFromExcel extends Command
         'Код подразделения' => 'passport_department_code',
         'Адрес прописки' => 'legal_address',
         'Адрес проживания' => 'actual_address',
-        'Дата оформления' => 'issue_date',
+        'Дата оформления' => 'registration_date',
         'Курьерская служба' => 'courier_service',
         'Источник привлечения' => 'attraction_source',
         'Начало пользования' => 'service_start_date',
         'Конец пользования' => 'service_end_date',
-        'Серийный номер' => '',
-        '1й аккумулятор электровелосипеда' => '',
-        '2й аккумулятор электровелосипеда' => ''
+        'Серийный номер' => 'serial_number',
+        '1й аккумулятор электровелосипеда' => 'battery_1',
+        '2й аккумулятор электровелосипеда' => 'battery_2',
+        'telegram_id' => 'telegram_id',
     ];
 
-    // Поля для основной таблицы clients
-    private $mainTableFields = [
-        'phone_number', 'name'
-    ];
+    private $clientRepository;
 
-    // Поля для custom_client_fields
-    private $customFields = [
-        'contract_number', 'courier_id', 'last_name', 'first_name', 'middle_name',
-        'birth_date', 'phone_number', 'additional_phone', 'relatives_phone', 'passport_series',
-        'passport_number', 'passport_issued_by', 'passport_issue_date',
-        'passport_department_code', 'legal_address', 'actual_address', 'registration_date',
-        'courier_service', 'attraction_source', 'service_start_date', 'service_end_date',
-        'serial_number', 'battery_1', 'battery_2', 'issue_date'
-    ];
+    public function __construct(ClientRepository $clientRepository)
+    {
+        parent::__construct();
+        $this->clientRepository = $clientRepository;
+    }
 
     public function handle()
     {
         $file = $this->argument('file');
         $format = $this->option('format');
+        $skipExisting = $this->option('skip-existing');
+        $batchSize = (int) $this->option('batch-size');
 
         if (!file_exists($file)) {
             $this->error("File not found: {$file}");
@@ -67,102 +67,132 @@ class ImportClientsFromExcel extends Command
         }
 
         $this->info("Starting import from: {$file}");
+        $this->info("Skip existing: " . ($skipExisting ? 'Yes' : 'No'));
+        $this->info("Batch size: {$batchSize}");
 
         try {
-            $data = $this->readFile($file, $format);
-            $this->processData($data);
+            $results = $this->processFile($file, $format, $skipExisting, $batchSize);
+
+            $this->info("\nImport completed!");
+            $this->info("Successfully imported: {$results['success']}");
+            $this->info("Skipped (existing): {$results['skipped']}");
+            $this->info("Failed: {$results['failed']}");
+
+            if ($results['failed'] > 0) {
+                $this->warn("Check the log file for details on failed rows.");
+            }
+
         } catch (\Exception $e) {
             $this->error("Import failed: " . $e->getMessage());
             Log::error('Import failed: ' . $e->getMessage());
             return 1;
         }
 
-        $this->info("Import completed successfully!");
         return 0;
     }
 
-    private function readFile($file, $format)
+    private function processFile($file, $format, $skipExisting, $batchSize)
     {
-        $data = [];
+        $results = [
+            'success' => 0,
+            'skipped' => 0,
+            'failed' => 0
+        ];
 
-        if ($format === 'csv') {
-            $handle = fopen($file, 'r');
-            if (!$handle) {
-                throw new \Exception("Cannot open CSV file");
-            }
-
-            // Читаем заголовки
-            $headers = fgetcsv($handle, null, ';');
-            if (!$headers) {
-                throw new \Exception("Cannot read CSV headers");
-            }
-
-            // Нормализуем заголовки
-            $headers = array_map('trim', $headers);
-
-            $rowNumber = 1;
-            while (($row = fgetcsv($handle, null, ';')) !== FALSE) {
-                $rowNumber++;
-
-                if (count($row) !== count($headers)) {
-                    Log::warning("Row {$rowNumber}: Column count mismatch, skipping");
-                    continue;
-                }
-
-                $rowData = array_combine($headers, $row);
-                $data[] = $rowData;
-            }
-
-            fclose($handle);
-        } else {
-            throw new \Exception("Unsupported format. Use CSV");
+        $handle = fopen($file, 'r');
+        if (!$handle) {
+            throw new \Exception("Cannot open file");
         }
 
-        return $data;
+        // Читаем заголовки
+        $headers = fgetcsv($handle, null,';');
+        if (!$headers) {
+            fclose($handle);
+            throw new \Exception("Cannot read CSV headers");
+        }
+
+        $headers = array_map('trim', $headers);
+        $batch = [];
+        $rowNumber = 1;
+
+        $this->output->progressStart();
+
+        while (($row = fgetcsv($handle, null, ';')) !== FALSE) {
+            $rowNumber++;
+
+            if (count($row) !== count($headers)) {
+                Log::warning("Row {$rowNumber}: Column count mismatch, skipping");
+                $results['failed']++;
+                continue;
+            }
+
+            $rowData = array_combine($headers, $row);
+            $normalizedData = $this->normalizeRowData($rowData);
+
+            // Проверяем существующий номер телефона
+            if ($skipExisting && $this->phoneNumberExists($normalizedData['phone_number'])) {
+                $results['skipped']++;
+                Log::info("Row {$rowNumber}: Skipped - phone number already exists");
+                continue;
+            }
+
+            $batch[] = [
+                'data' => $normalizedData,
+                'row_number' => $rowNumber
+            ];
+
+            // Обрабатываем батч
+            if (count($batch) >= $batchSize) {
+                $batchResults = $this->processBatch($batch);
+                $results['success'] += $batchResults['success'];
+                $results['failed'] += $batchResults['failed'];
+                $batch = [];
+            }
+
+            $this->output->progressAdvance();
+        }
+
+        // Обрабатываем оставшиеся записи
+        if (!empty($batch)) {
+            $batchResults = $this->processBatch($batch);
+            $results['success'] += $batchResults['success'];
+            $results['failed'] += $batchResults['failed'];
+        }
+
+        fclose($handle);
+        $this->output->progressFinish();
+
+        return $results;
     }
 
-    private function processData($data)
+    private function processBatch($batch)
     {
-        $successCount = 0;
-        $errorCount = 0;
+        $results = [
+            'success' => 0,
+            'failed' => 0
+        ];
 
-        foreach ($data as $index => $row) {
+        foreach ($batch as $item) {
             try {
-                DB::transaction(function () use ($row, $index, &$successCount, &$errorCount) {
-                    $this->processRow($row, $index + 2); // +2 потому что заголовки + 1-based индекс
-                    $successCount++;
+                DB::transaction(function () use ($item, &$results) {
+                    $this->createClientFromRow($item['data'], $item['row_number']);
+                    $results['success']++;
                 });
             } catch (\Exception $e) {
-                $errorCount++;
-                Log::error("Row " . ($index + 2) . " import failed: " . $e->getMessage());
-                $this->warn("Row " . ($index + 2) . " failed: " . $e->getMessage());
+                $results['failed']++;
+                Log::error("Row {$item['row_number']} import failed: " . $e->getMessage());
             }
         }
 
-        $this->info("Import results: {$successCount} successful, {$errorCount} failed");
+        return $results;
     }
 
-    private function processRow($row, $rowNumber)
-    {
-        // Нормализуем данные
-        $normalizedData = $this->normalizeData($row);
-
-        // Валидация основных данных
-        $this->validateMainData($normalizedData, $rowNumber);
-
-        // Создаем запись в основной таблице
-        $clientId = $this->createMainClientRecord($normalizedData, $rowNumber);
-
-        // Создаем кастомные поля
-        $this->createCustomFields($clientId, $normalizedData, $rowNumber);
-    }
-
-    private function normalizeData($row)
+    private function normalizeRowData($rowData)
     {
         $normalized = [];
 
         foreach ($this->fieldMapping as $csvField => $dbField) {
-            $value = $row[$csvField] ?? null;
+            $value = $rowData[$csvField] ?? null;
 
             if ($value !== null) {
                 $value = trim($value);
@@ -194,6 +224,11 @@ class ImportClientsFromExcel extends Command
             }
         }
 
+        // Нормализация телефона
+        if (!empty($normalized['phone_number'])) {
+            $normalized['phone_number'] = $this->normalizePhone($normalized['phone_number']);
+        }
+
         return $normalized;
     }
 
@@ -209,6 +244,14 @@ class ImportClientsFromExcel extends Command
             ];
         }
 
+        // Пробуем другие форматы
+        if (preg_match('/(\d{4})\s*(\d{6})/', $passportData, $matches)) {
+            return [
+                'series' => $matches[1],
+                'number' => $matches[2]
+            ];
+        }
+
         return ['series' => null, 'number' => null];
     }
 
@@ -216,23 +259,55 @@ class ImportClientsFromExcel extends Command
     {
         try {
             // Пробуем разные форматы дат
-            $formats = ['d.m.Y', 'd/m/Y', 'Y-m-d', 'd-m-Y'];
+            $formats = ['d.m.Y', 'd/m/Y', 'Y-m-d', 'd-m-Y', 'Y.m.d'];
 
             foreach ($formats as $format) {
-                $date = Carbon::createFromFormat($format, $dateString);
+                $date = \DateTime::createFromFormat($format, $dateString);
                 if ($date !== false) {
                     return $date->format('Y-m-d');
                 }
             }
 
-            // Если не удалось распарсить, возвращаем как есть (валидатор потом отловит)
+            // Если дата в формате Excel (серийный номер)
+            if (is_numeric($dateString)) {
+                $unixTimestamp = ($dateString - 25569) * 86400; // Convert Excel date to Unix timestamp
+                return date('Y-m-d', $unixTimestamp);
+            }
+
             return $dateString;
         } catch (\Exception $e) {
             return $dateString;
         }
     }
 
-    private function validateMainData($data, $rowNumber)
+    private function normalizePhone($phone)
+    {
+        // Удаляем все нецифровые символы
+        $clean = preg_replace('/[^\d]/', '', $phone);
+
+        // Если номер начинается с 8, заменяем на 7
+        if (strlen($clean) === 11 && $clean[0] === '8') {
+            $clean = '7' . substr($clean, 1);
+        }
+
+        // Если номер начинается без кода страны, добавляем 7
+        if (strlen($clean) === 10) {
+            $clean = '7' . $clean;
+        }
+
+        return $clean;
+    }
+
+    private function phoneNumberExists($phone)
+    {
+        if (empty($phone)) {
+            return false;
+        }
+
+        return $this->clientRepository->phoneNumberExists($phone);
+    }
+
+    private function createClientFromRow($data, $rowNumber)
     {
         // Проверяем обязательные поля
         if (empty($data['phone_number'])) {
@@ -243,125 +318,60 @@ class ImportClientsFromExcel extends Command
             throw new \Exception("First name and last name are required");
         }
 
-        // Проверяем уникальность телефона
-        $existingClient = DB::table('clients')
-            ->where('phone_number', $data['phone_number'])
-            ->first();
+        // Генерируем telegram_id (используем временный, если не нужен)
+        // В репозитории будет использоваться логика приглашений, если telegram_id не указан
+        $telegramId = $data['telegram_id'];
 
-        if ($existingClient) {
-            throw new \Exception("Phone number already exists: {$data['phone_number']}");
-        }
-    }
-
-    private function createMainClientRecord($data, $rowNumber)
-    {
-        // Генерируем уникальные значения
-        $telegramId = $this->generateUniqueTelegramId();
-        $referralCode = $this->generateReferralCode();
-
+        // Подготавливаем данные для создания клиента
         $clientData = [
             'telegram_id' => $telegramId,
             'phone_number' => $data['phone_number'],
             'name' => trim($data['last_name'] . ' ' . $data['first_name'] . ' ' . ($data['middle_name'] ?? '')),
-            'registration_date' => now(),
-            'referral_code' => $referralCode,
-            'balance' => 0.00,
-            'bonus_balance' => 0.00,
-            'referred_by' => null,
-            'created_at' => now(),
-            'updated_at' => now(),
         ];
 
-        $clientId = DB::table('clients')->insertGetId($clientData);
+        // Подготавливаем кастомные поля
+        $customFields = $this->prepareCustomFields($data);
 
-        if (!$clientId) {
-            throw new \Exception("Failed to create client record");
-        }
+        // Добавляем кастомные поля в данные клиента
+        $clientData['custom_fields'] = $customFields;
 
-        return $clientId;
+        // Создаем клиента через репозиторий
+        $this->clientRepository->create($clientData);
     }
 
-    private function createCustomFields($clientId, $data, $rowNumber)
+    private function prepareCustomFields($data)
     {
-        foreach ($this->customFields as $field) {
-            $value = $data[$field] ?? null;
+        $customFields = [];
+
+        // Определяем тип поля на основе имени
+        $getFieldType = function ($fieldName) {
+            $dateFields = ['birth_date', 'passport_issue_date', 'registration_date',
+                'service_start_date', 'service_end_date', 'issue_date'];
+
+            if (in_array($fieldName, $dateFields)) {
+                return 'date';
+            }
+
+            return 'text';
+        };
+
+        // Все поля, кроме phone_number, name, telegram_id идем в кастомные
+        $excludeFromCustom = ['phone_number', 'name', 'telegram_id'];
+
+        foreach ($data as $fieldName => $value) {
+            if (in_array($fieldName, $excludeFromCustom)) {
+                continue;
+            }
 
             if ($value !== null) {
-                // Определяем тип поля
-                $fieldType = $this->getFieldType($field);
-
-                // Валидация в зависимости от типа поля
-                $this->validateCustomField($field, $value, $rowNumber);
-
-                DB::table('custom_client_fields')->insert([
-                    'client_id' => $clientId,
-                    'field_name' => $field,
-                    'field_type' => $fieldType,
-                    'field_value' => $value,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-    }
-
-    private function getFieldType($fieldName)
-    {
-        $dateFields = ['birth_date', 'passport_issue_date', 'registration_date',
-            'service_start_date', 'service_end_date', 'issue_date'];
-
-        if (in_array($fieldName, $dateFields)) {
-            return 'date';
-        }
-
-        return 'text';
-    }
-
-    private function validateCustomField($field, $value, $rowNumber)
-    {
-        $rules = [
-            'passport_series' => ['nullable', 'string', 'size:4'],
-            'passport_number' => ['nullable', 'string', 'size:6'],
-            'passport_department_code' => ['nullable', 'string'],
-            'phone_number' => ['required', 'string', 'max:20'],
-            'additional_phone' => ['nullable', 'string', 'max:200'],
-            'relatives_phone' => ['nullable', 'string', 'max:200'],
-        ];
-
-        if (isset($rules[$field])) {
-            $validator = Validator::make([$field => $value], [$field => $rules[$field]]);
-
-            if ($validator->fails()) {
-                throw new \Exception("Field {$field} validation failed: " .
-                    implode(', ', $validator->errors()->all()));
+                $customFields[] = [
+                    'name' => $fieldName,
+                    'value' => (string) $value,
+                    'type' => $getFieldType($fieldName)
+                ];
             }
         }
 
-        // Проверка дат
-        if (strpos($field, 'date') !== false && !empty($value)) {
-            if (!strtotime($value)) {
-                throw new \Exception("Field {$field} contains invalid date: {$value}");
-            }
-        }
-    }
-
-    private function generateUniqueTelegramId()
-    {
-        do {
-            $telegramId = rand(100000000, 999999999);
-            $exists = DB::table('clients')->where('telegram_id', $telegramId)->exists();
-        } while ($exists);
-
-        return $telegramId;
-    }
-
-    private function generateReferralCode()
-    {
-        do {
-            $code = Str::upper(Str::random(8));
-            $exists = DB::table('clients')->where('referral_code', $code)->exists();
-        } while ($exists);
-
-        return $code;
+        return $customFields;
     }
 }
