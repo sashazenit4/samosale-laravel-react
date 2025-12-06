@@ -19,3 +19,4 @@ require __DIR__.'/bonuses.php';
 require __DIR__.'/users.php';
 require __DIR__.'/bonus-config.php';
 require __DIR__.'/documents.php';
+require __DIR__.'/excel-export.php';
