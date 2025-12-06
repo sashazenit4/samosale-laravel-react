@@ -22,26 +22,90 @@ class ExportService
         'transactions' => \App\Models\Transaction::class,
     ];
 
+    // Определяем первичные ключи для каждой таблицы
+    private $primaryKeys = [
+        'bikes' => 'id',
+        'bonus_operations' => 'id',
+        'clients' => 'user_id',  // Особый случай
+        'custom_client_fields' => 'id',
+        'equipment' => 'id',
+        'payments' => 'id',
+        'rentals' => 'id',
+        'tariffs' => 'id',
+        'transactions' => 'id',
+    ];
+
+    // Определяем связи между таблицами с учетом их структуры
     private $relationsMap = [
         'bonus_operations' => [
-            'client_id' => ['table' => 'clients', 'display' => 'name'],
-            'transaction_id' => ['table' => 'transactions', 'display' => 'id'],
+            'client_id' => [
+                'table' => 'clients',
+                'foreign_key' => 'client_id',
+                'primary_key' => 'user_id', // У клиентов первичный ключ user_id
+                'display' => 'name'
+            ],
+            'transaction_id' => [
+                'table' => 'transactions',
+                'foreign_key' => 'transaction_id',
+                'primary_key' => 'id',
+                'display' => 'id'
+            ],
         ],
         'payments' => [
-            'client_id' => ['table' => 'clients', 'display' => 'name'],
-            'rental_id' => ['table' => 'rentals', 'display' => 'id'],
+            'client_id' => [
+                'table' => 'clients',
+                'foreign_key' => 'client_id',
+                'primary_key' => 'user_id',
+                'display' => 'name'
+            ],
+            'rental_id' => [
+                'table' => 'rentals',
+                'foreign_key' => 'rental_id',
+                'primary_key' => 'id',
+                'display' => 'id'
+            ],
         ],
         'rentals' => [
-            'client_id' => ['table' => 'clients', 'display' => 'name'],
-            'bike_id' => ['table' => 'bikes', 'display' => 'bike_number'],
-            'tariff_id' => ['table' => 'tariffs', 'display' => 'program'],
+            'client_id' => [
+                'table' => 'clients',
+                'foreign_key' => 'client_id',
+                'primary_key' => 'user_id',
+                'display' => 'name'
+            ],
+            'bike_id' => [
+                'table' => 'bikes',
+                'foreign_key' => 'bike_id',
+                'primary_key' => 'id',
+                'display' => 'bike_number'
+            ],
+            'tariff_id' => [
+                'table' => 'tariffs',
+                'foreign_key' => 'tariff_id',
+                'primary_key' => 'id',
+                'display' => 'program'
+            ],
         ],
         'transactions' => [
-            'payment_id' => ['table' => 'payments', 'display' => 'id'],
-            'client_id' => ['table' => 'clients', 'display' => 'name'],
+            'payment_id' => [
+                'table' => 'payments',
+                'foreign_key' => 'payment_id',
+                'primary_key' => 'id',
+                'display' => 'id'
+            ],
+            'client_id' => [
+                'table' => 'clients',
+                'foreign_key' => 'client_id',
+                'primary_key' => 'user_id',
+                'display' => 'name'
+            ],
         ],
         'custom_client_fields' => [
-            'client_id' => ['table' => 'clients', 'display' => 'name'],
+            'client_id' => [
+                'table' => 'clients',
+                'foreign_key' => 'client_id',
+                'primary_key' => 'user_id',
+                'display' => 'name'
+            ],
         ],
     ];
 
@@ -62,13 +126,20 @@ class ExportService
 
     private function getTableData(string $tableName, array $filters = [])
     {
+        $primaryKey = $this->getPrimaryKey($tableName);
         $query = DB::table($tableName);
 
         // Apply filters if any
         foreach ($filters as $field => $value) {
-            if ($value !== null && $value !== '') {
+            if ($value !== null && $value !== '' && Schema::hasColumn($tableName, $field)) {
                 $query->where($field, 'like', "%{$value}%");
             }
+        }
+
+        // Добавляем первичный ключ в SELECT, если его нет
+        $columns = Schema::getColumnListing($tableName);
+        if (!in_array($primaryKey, $columns) && $primaryKey !== 'id') {
+            $query->addSelect($columns);
         }
 
         $data = $query->get();
@@ -83,26 +154,29 @@ class ExportService
 
     private function resolveRelations(string $tableName, $data)
     {
-        foreach ($this->relationsMap[$tableName] as $foreignKey => $relation) {
-            $relatedTable = $relation['table'];
-            $displayField = $relation['display'];
+        foreach ($this->relationsMap[$tableName] as $foreignKey => $relationConfig) {
+            $relatedTable = $relationConfig['table'];
+            $foreignKeyColumn = $relationConfig['foreign_key'];
+            $primaryKey = $relationConfig['primary_key'];
+            $displayField = $relationConfig['display'];
 
             // Get all foreign keys from data
-            $foreignKeys = $data->pluck($foreignKey)->filter()->unique();
+            $foreignKeys = $data->pluck($foreignKeyColumn)->filter()->unique();
 
             if ($foreignKeys->isNotEmpty()) {
-                // Fetch related data
+                // Fetch related data with correct primary key
                 $relatedData = DB::table($relatedTable)
-                    ->whereIn('id', $foreignKeys)
+                    ->whereIn($primaryKey, $foreignKeys)
                     ->get()
-                    ->keyBy('id');
+                    ->keyBy($primaryKey);
 
                 // Add relation to each item
                 foreach ($data as $item) {
-                    if ($item->$foreignKey && isset($relatedData[$item->$foreignKey])) {
-                        $item->{$foreignKey . '_display'} = $relatedData[$item->$foreignKey]->$displayField;
+                    $foreignKeyValue = $item->$foreignKeyColumn;
+                    if ($foreignKeyValue && isset($relatedData[$foreignKeyValue])) {
+                        $item->{$foreignKeyColumn . '_display'} = $relatedData[$foreignKeyValue]->$displayField;
                     } else {
-                        $item->{$foreignKey . '_display'} = null;
+                        $item->{$foreignKeyColumn . '_display'} = null;
                     }
                 }
             }
@@ -117,7 +191,7 @@ class ExportService
             return $clientsData;
         }
 
-        // Get all client IDs
+        // Get all client IDs (user_id)
         $clientIds = $clientsData->pluck('user_id');
 
         // Fetch all custom fields for these clients
@@ -169,7 +243,7 @@ class ExportService
         // Write headers
         foreach ($headers as $colIndex => $header) {
             $columnLetter = Coordinate::stringFromColumnIndex($colIndex + 1);
-            $sheet->setCellValue($columnLetter . '1', $this->formatHeader($header));
+            $sheet->setCellValue($columnLetter . '1', $this->formatHeader($header, $tableName));
             $sheet->getStyle($columnLetter . '1')->getFont()->setBold(true);
         }
 
@@ -182,8 +256,13 @@ class ExportService
                 $value = $rowArray[$header] ?? '';
 
                 // Convert dates to readable format
-                if (in_array($header, ['created_at', 'updated_at', 'start_date', 'end_date', 'paid_at'])) {
+                if ($this->isDateField($header)) {
                     $value = $this->formatDate($value);
+                }
+
+                // Format decimal values
+                if ($this->isDecimalField($header, $tableName)) {
+                    $value = $this->formatDecimal($value);
                 }
 
                 $sheet->setCellValue($columnLetter . $rowIndex, $value);
@@ -191,7 +270,7 @@ class ExportService
             $rowIndex++;
         }
 
-        // Auto size columns - исправленная версия
+        // Auto size columns
         $columnCount = count($headers);
         for ($i = 1; $i <= $columnCount; $i++) {
             $columnLetter = Coordinate::stringFromColumnIndex($i);
@@ -206,10 +285,13 @@ class ExportService
             ->setARGB('FFE0E0E0');
 
         // Add borders
-        $sheet->getStyle('A1:' . Coordinate::stringFromColumnIndex($columnCount) . ($rowIndex - 1))
-            ->getBorders()
-            ->getAllBorders()
-            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        $lastRow = $rowIndex - 1;
+        if ($lastRow >= 1) {
+            $sheet->getStyle('A1:' . Coordinate::stringFromColumnIndex($columnCount) . $lastRow)
+                ->getBorders()
+                ->getAllBorders()
+                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+        }
 
         // Create temporary file
         $fileName = $tableName . '_export_' . date('Y-m-d_His') . '.xlsx';
@@ -230,32 +312,71 @@ class ExportService
         ];
     }
 
-    private function formatHeader(string $header): string
+    private function getPrimaryKey(string $tableName): string
+    {
+        return $this->primaryKeys[$tableName] ?? 'id';
+    }
+
+    private function formatHeader(string $header, string $tableName = ''): string
     {
         // Format header names
         $header = str_replace('_', ' ', $header);
-        $header = str_replace('_display', ' (related)', $header);
+
+        // Remove _display suffix for display
+        if (str_ends_with($header, ' display')) {
+            $header = str_replace(' display', '', $header) . ' (связанное)';
+        }
 
         // Special formatting for common fields
         $replacements = [
             'id' => 'ID',
-            'created at' => 'Дата создания',
-            'updated at' => 'Дата обновления',
+            'user id' => 'ID пользователя',
             'client id' => 'ID клиента',
-            'client id display' => 'Клиент',
             'bike id' => 'ID велосипеда',
-            'bike id display' => 'Номер велосипеда',
             'tariff id' => 'ID тарифа',
-            'tariff id display' => 'Тариф',
             'transaction id' => 'ID транзакции',
             'payment id' => 'ID платежа',
             'rental id' => 'ID аренды',
-            'user id' => 'ID пользователя',
+            'created at' => 'Дата создания',
+            'updated at' => 'Дата обновления',
+            'start date' => 'Дата начала',
+            'end date' => 'Дата окончания',
+            'planned end date' => 'Плановая дата окончания',
+            'actual end date' => 'Фактическая дата окончания',
+            'paid at' => 'Дата оплаты',
             'phone number' => 'Номер телефона',
             'registration date' => 'Дата регистрации',
             'referral code' => 'Реферальный код',
             'referred by' => 'Приглашен пользователем',
             'bonus balance' => 'Бонусный баланс',
+            'balance' => 'Баланс',
+            'bike number' => 'Номер велосипеда',
+            'frame number' => 'Номер рамы',
+            'total amount' => 'Общая сумма',
+            'paid amount' => 'Оплаченная сумма',
+            'total cost' => 'Общая стоимость',
+            'refund amount' => 'Сумма возврата',
+            'bonus deduct amount' => 'Сумма списанных бонусов',
+            'qr code id' => 'ID QR кода',
+            'qr code url' => 'URL QR кода',
+            'expires at' => 'Истекает',
+            'bank transaction id' => 'ID банковской транзакции',
+            'bank request' => 'Запрос банку',
+            'bank response' => 'Ответ банка',
+            'battery capacity' => 'Емкость батареи',
+            'batteries count' => 'Количество батарей',
+            'telegram id' => 'Telegram ID',
+            'property 1' => 'Свойство 1',
+            'property 2' => 'Свойство 2',
+            'property 3' => 'Свойство 3',
+            'property 4' => 'Свойство 4',
+            'property 5' => 'Свойство 5',
+            'property 6' => 'Свойство 6',
+            'property 7' => 'Свойство 7',
+            'property 8' => 'Свойство 8',
+            'property 9' => 'Свойство 9',
+            'property 10' => 'Свойство 10',
+            'metadata' => 'Метаданные',
         ];
 
         $lowerHeader = strtolower($header);
@@ -266,21 +387,43 @@ class ExportService
         return ucwords($header);
     }
 
+    private function isDateField(string $fieldName): bool
+    {
+        $dateFields = [
+            'created_at', 'updated_at', 'start_date', 'end_date', 'paid_at',
+            'registration_date', 'generated_at', 'expires_at', 'planned_end_date',
+            'actual_end_date'
+        ];
+
+        return in_array($fieldName, $dateFields);
+    }
+
+    private function isDecimalField(string $fieldName, string $tableName): bool
+    {
+        $decimalFields = [
+            'amount', 'balance', 'bonus_balance', 'total_amount', 'paid_amount',
+            'total_cost', 'refund_amount', 'bonus_deduct_amount', 'price_month',
+            'price_week1', 'price_week2', 'price_week3', 'price_week4'
+        ];
+
+        return in_array($fieldName, $decimalFields);
+    }
+
     private function formatDate($value)
     {
-        if (!$value) {
+        if (!$value || $value === '0000-00-00 00:00:00') {
             return '';
         }
 
         try {
             if ($value instanceof \DateTime) {
-                return $value->format('Y-m-d H:i:s');
+                return $value->format('d.m.Y H:i:s');
             }
 
             if (is_string($value)) {
                 $timestamp = strtotime($value);
                 if ($timestamp !== false) {
-                    return date('Y-m-d H:i:s', $timestamp);
+                    return date('d.m.Y H:i:s', $timestamp);
                 }
             }
 
@@ -290,8 +433,36 @@ class ExportService
         }
     }
 
+    private function formatDecimal($value)
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        // Remove unnecessary zeros
+        $floatValue = (float) $value;
+        if ($floatValue == (int) $floatValue) {
+            return (int) $floatValue;
+        }
+
+        return number_format($floatValue, 2, '.', '');
+    }
+
     public function getAvailableTables(): array
     {
         return array_keys($this->tableModels);
+    }
+
+    public function getTableStructure(string $tableName): array
+    {
+        if (!Schema::hasTable($tableName)) {
+            throw new \Exception("Table {$tableName} does not exist");
+        }
+
+        return [
+            'primary_key' => $this->getPrimaryKey($tableName),
+            'columns' => Schema::getColumnListing($tableName),
+            'has_relations' => isset($this->relationsMap[$tableName])
+        ];
     }
 }
