@@ -488,6 +488,9 @@ class ExportService
 
         $data = $query->get();
 
+        // Делаем фио
+        $data = $this->addClientCustomFieldsToTransactions($data);
+
         // Дополнительная обработка данных
         $data = $this->enhanceTransactionData($data);
 
@@ -835,5 +838,92 @@ class ExportService
         ];
 
         return $colors[$status] ?? null;
+    }
+
+    /**
+     * Добавляем кастомные поля клиентов к транзакциям
+     */
+    private function addClientCustomFieldsToTransactions($transactionsData)
+    {
+        if ($transactionsData->isEmpty()) {
+            return $transactionsData;
+        }
+
+        // Получаем все user_id клиентов из транзакций
+        $clientIds = $transactionsData->pluck('client_user_id')->unique();
+
+        // Получаем кастомные поля для этих клиентов
+        $customFields = DB::table('custom_client_fields')
+            ->whereIn('client_id', $clientIds)
+            ->get()
+            ->groupBy('client_id');
+
+        // Собираем названия полей, которые могут содержать ФИО
+        $fioFields = ['full_name', 'фио', 'fio', 'name', 'first_name', 'last_name', 'middle_name'];
+
+        foreach ($transactionsData as $transaction) {
+            $clientId = $transaction->client_user_id;
+
+            // Инициализируем поля для ФИО
+            $transaction->client_full_name = '';
+            $transaction->client_custom_fields = [];
+
+            if (isset($customFields[$clientId])) {
+                $fields = [];
+                $fullNameParts = [];
+
+                foreach ($customFields[$clientId] as $customField) {
+                    $fieldName = $customField->field_name;
+                    $fieldValue = $customField->field_value;
+
+                    // Сохраняем все кастомные поля
+                    $fields[$fieldName] = $fieldValue;
+                    $transaction->{$fieldName} = $fieldValue;
+
+                    // Проверяем, является ли поле частью ФИО
+                    $fieldNameLower = strtolower($fieldName);
+                    if (in_array($fieldNameLower, ['full_name', 'фио', 'fio']) && !empty($fieldValue)) {
+                        // Если это поле "ФИО" целиком
+                        $transaction->client_full_name = $fieldValue;
+                    } elseif (in_array($fieldNameLower, ['first_name', 'имя', 'name']) && !empty($fieldValue)) {
+                        $fullNameParts['first_name'] = $fieldValue;
+                    } elseif (in_array($fieldNameLower, ['last_name', 'фамилия', 'surname']) && !empty($fieldValue)) {
+                        $fullNameParts['last_name'] = $fieldValue;
+                    } elseif (in_array($fieldNameLower, ['middle_name', 'отчество', 'patronymic']) && !empty($fieldValue)) {
+                        $fullNameParts['middle_name'] = $fieldValue;
+                    }
+                }
+
+                // Если нет поля "ФИО" целиком, но есть части - собираем
+                if (empty($transaction->client_full_name) && !empty($fullNameParts)) {
+                    $fullName = '';
+
+                    // Порядок: Фамилия Имя Отчество
+                    if (isset($fullNameParts['last_name'])) {
+                        $fullName .= $fullNameParts['last_name'];
+                    }
+                    if (isset($fullNameParts['first_name'])) {
+                        $fullName .= ($fullName ? ' ' : '') . $fullNameParts['first_name'];
+                    }
+                    if (isset($fullNameParts['middle_name'])) {
+                        $fullName .= ($fullName ? ' ' : '') . $fullNameParts['middle_name'];
+                    }
+
+                    $transaction->client_full_name = $fullName;
+                }
+
+                // Если все еще нет ФИО, используем стандартное имя из clients
+                if (empty($transaction->client_full_name) && !empty($transaction->client_name)) {
+                    $transaction->client_full_name = $transaction->client_name;
+                }
+
+                $transaction->client_custom_fields = $fields;
+            } else {
+                // Если нет кастомных полей, используем стандартное имя
+                $transaction->client_full_name = $transaction->client_name;
+            }
+        }
+
+        return $transactionsData;
     }
 }
