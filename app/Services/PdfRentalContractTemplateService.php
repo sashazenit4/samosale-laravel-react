@@ -3,69 +3,93 @@
 namespace App\Services;
 
 use App\Models\Bike;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Exception;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
 
 class PdfRentalContractTemplateService
 {
-    public function generateRentalContract($rental, $client, $customFields)
+    public function generateRentalContract($rental, $client, $customFields): string
     {
-        // Сначала генерируем DOCX файл используя существующий сервис
+        // 1. Генерируем DOCX через твой существующий сервис
         $docxService = app(DocxRentalContractTemplateService::class);
         $docxPath = $docxService->generateRentalContract($rental, $client, $customFields);
 
         try {
-            // Конвертируем DOCX в PDF
-            $pdfPath = $this->convertDocxToPdf($docxPath);
+            // 2. Конвертируем в PDF через LibreOffice (максимальная точность)
+            $pdfPath = $this->convertDocxToPdfWithLibreOffice($docxPath);
 
-            // Удаляем временный DOCX файл
-            if (file_exists($docxPath)) {
-                unlink($docxPath);
-            }
+            // 3. Удаляем временный DOCX
+            $this->cleanupTempFile($docxPath);
 
             return $pdfPath;
 
-        } catch (\Exception $e) {
-            // Если конвертация не удалась, удаляем временные файлы и пробрасываем исключение
-            if (file_exists($docxPath)) {
-                unlink($docxPath);
-            }
-            throw new \Exception("Ошибка конвертации DOCX в PDF: " . $e->getMessage());
+        } catch (Exception $e) {
+            // На всякий случай чистим файлы при ошибке
+            $this->cleanupTempFile($docxPath);
+            throw new Exception('Ошибка конвертации договора в PDF: ' . $e->getMessage());
         }
     }
 
-    private function convertDocxToPdf($docxPath)
+    /**
+     * Конвертация через LibreOffice — золотой стандарт точности
+     */
+    private function convertDocxToPdfWithLibreOffice(string $docxPath): string
     {
-        // Вариант 1: Используем PHPWord + DomPDF (более сложный, но бесплатный)
-        return $this->convertDocxToPdfWithPhpWord($docxPath);
+        if (!file_exists($docxPath)) {
+            throw new Exception('DOCX файл не найден: ' . $docxPath);
+        }
 
-        // Вариант 2: Используем LibreOffice (требует установки LibreOffice на сервере)
-        // return $this->convertDocxToPdfWithLibreOffice($docxPath);
+        $inputDir  = dirname($docxPath);
+        $fileName  = pathinfo($docxPath, PATHINFO_FILENAME);
+        $random    = Str::random(10);
+        $pdfName   = "{$fileName}_{$random}.pdf";
+        $pdfPath   = storage_path("app/contracts/pdf/{$pdfName}");
 
-        // Вариант 3: Используем облачный API (платный, но надежный)
-        // return $this->convertDocxToPdfWithApi($docxPath);
+        // Создаём папку, если нет
+        if (!is_dir(dirname($pdfPath))) {
+            mkdir(dirname($pdfPath), 0755, true);
+        }
+
+        // Команда для Linux/macOS
+        $command = [
+            'libreoffice',
+            '--headless',
+            '--convert-to', 'pdf:writer_pdf_Export',
+            '--outdir', dirname($pdfPath),
+            $docxPath
+        ];
+
+        $process = new Process($command);
+        $process->setTimeout(15); // 2 минуты на конвертацию
+        $process->run();
+
+        // Переименовываем файл, потому что LibreOffice сохраняет с оригинальным именем
+        $generatedPdf = dirname($pdfPath) . '/' . $fileName . '.pdf';
+
+        if (!$process->isSuccessful() || !file_exists($generatedPdf)) {
+            \Log::error('LibreOffice conversion failed', [
+                'command' => $command,
+                'output'  => $process->getOutput(),
+                'error'   => $process->getErrorOutput(),
+            ]);
+            throw new Exception('LibreOffice не смог конвертировать файл. Смотри логи.');
+        }
+
+        // Перемещаем в нужное место с уникальным именем
+        rename($generatedPdf, $pdfPath);
+
+        return $pdfPath;
     }
 
-    private function convertDocxToPdfWithPhpWord($docxPath)
+    /**
+     * Удаление временного файла
+     */
+    public function cleanupTempFile(string $filePath): void
     {
-        try {
-            $phpWord = \PhpOffice\PhpWord\IOFactory::load($docxPath);
-            $pdfWriter = new \PhpOffice\PhpWord\Writer\PDF\MPDF($phpWord);
-
-            $fileName = 'contract_rental_' . time() . '.pdf';
-            $pdfPath = storage_path('app/temp/' . $fileName);
-
-            // Создаем директорию если не существует
-            if (!file_exists(dirname($pdfPath))) {
-                mkdir(dirname($pdfPath), 0755, true);
-            }
-
-            $pdfWriter->save($pdfPath);
-
-            return $pdfPath;
-
-        } catch (\Exception $e) {
-            throw $e;
+        if (file_exists($filePath)) {
+            @unlink($filePath);
         }
     }
 
@@ -138,23 +162,5 @@ class PdfRentalContractTemplateService
             'client' => $client,
             'custom_fields' => $customFieldsArray
         ];
-    }
-
-    /**
-     * Очистка временных файлов
-     */
-    public function cleanupTempFile($filePath)
-    {
-        if (file_exists($filePath)) {
-            unlink($filePath);
-        }
-    }
-
-    /**
-     * Проверка существования шаблона
-     */
-    public function checkTemplateExists(): bool
-    {
-        return View::exists('templates.rental_contract');
     }
 }

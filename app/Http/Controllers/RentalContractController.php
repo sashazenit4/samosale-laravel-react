@@ -69,7 +69,6 @@ class RentalContractController extends Controller
             $rental->client->customFields
         );
 
-        // Формируем имя файла для скачивания
         $clientName = $rental->client->customFields
             ->where('field_name', 'last_name')
             ->first()->field_value ?? 'client';

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DocxToPdfController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\RentalContractController;
 
@@ -18,5 +19,7 @@ Route::middleware(['auth:sanctum', 'api'])->group(function () {
 
     Route::get('documents/rentals/{rentalId}/contract/pdf', [RentalContractController::class, 'generateRentalContractPdf']);
     Route::post('documents/rentals/{rentalId}/contract/custom-pdf', [RentalContractController::class, 'generateCustomContractPdf']);
-    Route::get('documents/rentals/template-check/pdf', [RentalContractController::class, 'checkPdfTemplate']);
+
+    // Конвертер
+    Route::post('/convert-docx-to-pdf', [DocxToPdfController::class, 'convert']);
 });
