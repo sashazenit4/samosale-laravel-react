@@ -497,7 +497,7 @@ class ExportService
     /**
      * Применение фильтров для транзакций
      */
-    private function applyTransactionFilters($query, array $filters)
+    public function applyTransactionFilters($query, array $filters)
     {
         // Фильтр по статусу
         if (!empty($filters['status'])) {
