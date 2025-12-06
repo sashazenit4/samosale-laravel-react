@@ -58,6 +58,7 @@ class PdfRentalContractTemplateService
             '--headless',
             '--convert-to', 'pdf:writer_pdf_Export',
             '--outdir', dirname($pdfPath),
+            '-env:UserInstallation=file:///opt/libreoffice-profile',
             $docxPath
         ];
 
