@@ -677,7 +677,7 @@ class ExportService
             $sheet->setCellValue('A' . $rowIndex, $transaction->id);
             $sheet->setCellValue('B' . $rowIndex, $transaction->created_date ?? '');
             $sheet->setCellValue('C' . $rowIndex, $transaction->created_time ?? '');
-            $sheet->setCellValue('D' . $rowIndex, $transaction->client_name ?? '');
+            $sheet->setCellValue('D' . $rowIndex, $transaction->client_full_name ?? '');
             $sheet->setCellValue('E' . $rowIndex, $transaction->client_phone ?? '');
             $sheet->setCellValue('F' . $rowIndex, $transaction->amount_formatted);
             $sheet->setCellValue('G' . $rowIndex, $transaction->bonus_deduct_amount_formatted);
@@ -850,7 +850,7 @@ class ExportService
         }
 
         // Получаем все user_id клиентов из транзакций
-        $clientIds = $transactionsData->pluck('client_user_id')->unique();
+        $clientIds = $transactionsData->pluck('client_id')->unique();
 
         // Получаем кастомные поля для этих клиентов
         $customFields = DB::table('custom_client_fields')
@@ -862,7 +862,7 @@ class ExportService
         $fioFields = ['full_name', 'фио', 'fio', 'name', 'first_name', 'last_name', 'middle_name'];
 
         foreach ($transactionsData as $transaction) {
-            $clientId = $transaction->client_user_id;
+            $clientId = $transaction->client_id;
 
             // Инициализируем поля для ФИО
             $transaction->client_full_name = '';
