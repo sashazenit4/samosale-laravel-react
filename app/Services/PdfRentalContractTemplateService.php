@@ -14,7 +14,7 @@ class PdfRentalContractTemplateService
     {
         // 1. Генерируем DOCX через твой существующий сервис
         $docxService = app(DocxRentalContractTemplateService::class);
-        $docxPath = $docxService->generateRentalContract($rental, $client, $customFields);
+        $docxPath = $docxService->generateRentalContract($rental, $client, $customFields, true);
 
         try {
             // 2. Конвертируем в PDF через LibreOffice (максимальная точность)

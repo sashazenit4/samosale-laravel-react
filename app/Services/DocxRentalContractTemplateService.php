@@ -7,10 +7,14 @@ use PhpOffice\PhpWord\TemplateProcessor;
 
 class DocxRentalContractTemplateService
 {
-    public function generateRentalContract($rental, $client, $customFields)
+    public function generateRentalContract($rental, $client, $customFields, $isPdf = false)
     {
-        // Загружаем шаблон
-        $templatePath = resource_path('templates/rental_contract_template.docx');
+        if ($isPdf) {
+            $templatePath = resource_path('templates/rental_contract_template.docx');
+        } else {
+            // Загружаем шаблон
+            $templatePath = resource_path('templates/rental_contract_template_no_sign.docx');
+        }
 
         if (!file_exists($templatePath)) {
             throw new \Exception("Шаблон документа не найден по пути: {$templatePath}");
@@ -84,9 +88,7 @@ class DocxRentalContractTemplateService
         $batteryInfo = '';
         if ($rental->battery_capacity) {
             $batteryInfo = $rental->battery_capacity . ' Ah';
-            if ($rental->batteries_count > 1) {
-                $batteryInfo .= ' (количество - ' . $rental->batteries_count . ' шт.)';
-            }
+            $batteryInfo .= ' (количество - ' . $rental->batteries_count . ' шт.)';
         }
 
         $bikeInfo = Bike::where('id', $rental->bike_id)->first();
