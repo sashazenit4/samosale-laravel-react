@@ -101,4 +101,17 @@ class BonusSystemConfig extends Model
         $level = self::getClientLevel($totalSpent);
         return $level['bonus_percentage'] ?? self::getPaymentBonusPercentage();
     }
+
+    public static function allConfigs(): Collection
+    {
+        return static::all(['id', 'key', 'value', 'description', 'created_at', 'updated_at'])
+            ->map(fn($config) => [
+                'id'          => $config->id,
+                'key'         => $config->key,
+                'value'       => $config->value,
+                'description' => $config->description ?? '',
+                'created_at'  => $config->created_at,
+                'updated_at'  => $config->updated_at,
+            ]);
+    }
 }

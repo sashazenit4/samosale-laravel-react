@@ -3,6 +3,7 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
     DeleteOutlined,
+    DownloadOutlined,
     EditOutlined,
     PlusOutlined,
     SearchOutlined,
@@ -43,6 +44,11 @@ export default function Bikes() {
 
     const [search, setSearch] = useState<string>(filters.search || '');
     const [tab, setTab] = useState<string>(filters.tab || 'bikes');
+    const [exportLoading, setExportLoading] = useState({
+        bikes: false,
+        equipment: false,
+        tariffs: false,
+    });
 
     const [drawer, setDrawer] = useState<{
         type: 'bikes' | 'equipment' | 'tariffs';
@@ -64,7 +70,7 @@ export default function Bikes() {
         tab === 'bikes' ? bikes : tab === 'equipment' ? equipment : tariffs;
 
     const go = (params: any, newTab?: string) => {
-        const currentTab = newTab ?? tab; // ← ВОТ ГЛАВНОЕ!
+        const currentTab = newTab ?? tab;
         Inertia.get(
             '/bikes',
             { ...params, tab: currentTab, search },
@@ -84,6 +90,61 @@ export default function Bikes() {
     };
     const handleTableChange = (pagination: any) =>
         go({ page: pagination.current });
+
+    // Функция экспорта для текущей вкладки
+    const handleExport = (tableType: 'bikes' | 'equipment' | 'tariffs') => {
+        // Устанавливаем состояние загрузки для соответствующей вкладки
+        setExportLoading((prev) => ({ ...prev, [tableType]: true }));
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/export/${tableType}`;
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
+
+        if (csrfToken) {
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '_token';
+            tokenInput.value = csrfToken;
+            form.appendChild(tokenInput);
+        }
+
+        const formatInput = document.createElement('input');
+        formatInput.type = 'hidden';
+        formatInput.name = 'format';
+        formatInput.value = 'excel';
+        form.appendChild(formatInput);
+
+        // Добавляем поисковый запрос если есть
+        if (search) {
+            const searchInput = document.createElement('input');
+            searchInput.type = 'hidden';
+            searchInput.name = 'search';
+            searchInput.value = search;
+            form.appendChild(searchInput);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        setTimeout(() => {
+            setExportLoading((prev) => ({ ...prev, [tableType]: false }));
+            const labels = {
+                bikes: 'велосипедов',
+                equipment: 'аккумуляторов',
+                tariffs: 'тарифов',
+            };
+            message.success(
+                `Экспорт ${labels[tableType]} завершен. Файл открывается в новой вкладке.`,
+            );
+        }, 1500);
+    };
 
     const openDrawer = (
         type: 'bikes' | 'equipment' | 'tariffs',
@@ -122,16 +183,13 @@ export default function Bikes() {
             Inertia.put(url, values, {
                 preserveState: true,
                 preserveScroll: true,
-                // УБИРАЕМ ПЕРЕЗАГРУЗКУ — ОСТАЁМСЯ НА СТРАНИЦЕ
-                // onSuccess: () => { ... }
                 onSuccess: (page) => {
                     console.log('УСПЕХ! Ответ сервера:', page);
                     message.success(isEdit ? 'Обновлено!' : 'Создано!');
                     closeDrawer();
-                    // НЕТ Inertia.visit() и Inertia.reload()
                 },
                 onError: (errors) => {
-                    console.log('ОШИБКИ валидации:', errors); // ← ВОТ ТУТ ВСЁ!
+                    console.log('ОШИБКИ валидации:', errors);
                     message.error('Проверьте поля');
                 },
                 onFinish: () => {
@@ -213,18 +271,24 @@ export default function Bikes() {
                                 key: 'bikes',
                                 label: 'Велосипеды',
                                 add: 'Добавить велосипед',
+                                exportLabel: 'Экспорт велосипедов',
+                                tableName: 'bikes',
                             },
                             {
                                 key: 'equipment',
                                 label: 'Аккумуляторы',
                                 add: 'Добавить аккумулятор',
+                                exportLabel: 'Экспорт аккумуляторов',
+                                tableName: 'equipment',
                             },
                             {
                                 key: 'tariffs',
                                 label: 'Тарифы',
                                 add: 'Добавить тариф',
+                                exportLabel: 'Экспорт тарифов',
+                                tableName: 'tariffs',
                             },
-                        ].map(({ key, label, add }) => (
+                        ].map(({ key, label, add, exportLabel, tableName }) => (
                             <Tabs.TabPane key={key} tab={label}>
                                 <Space
                                     style={{
@@ -255,6 +319,23 @@ export default function Bikes() {
                                         <Button
                                             icon={<FilterIcon size={18} />}
                                         />
+
+                                        {/* Кнопка экспорта для текущей вкладки */}
+                                        <Button
+                                            type="primary"
+                                            icon={<DownloadOutlined />}
+                                            loading={
+                                                exportLoading[
+                                                    key as keyof typeof exportLoading
+                                                ]
+                                            }
+                                            onClick={() =>
+                                                handleExport(tableName as any)
+                                            }
+                                            style={{ marginLeft: 8 }}
+                                        >
+                                            {exportLabel}
+                                        </Button>
                                     </Space>
                                 </Space>
 

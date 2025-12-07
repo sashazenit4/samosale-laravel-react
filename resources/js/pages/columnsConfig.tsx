@@ -222,6 +222,11 @@ export const clientsColumns = (
         },
     },
     {
+        title: 'Бонусный баланс',
+        dataIndex: 'bonus_balance',
+        key: 'bonus_balance',
+    },
+    {
         title: 'Действия',
         key: 'actions',
         fixed: 'right',
