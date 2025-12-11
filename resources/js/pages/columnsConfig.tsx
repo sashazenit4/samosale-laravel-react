@@ -294,7 +294,9 @@ export const bikeColumns = (
                 MotorStream: { color: 'purple', text: 'МоторСтрим' },
                 MotorGlide: { color: 'orange', text: 'МоторГлайд' },
             };
-            return <Tag color={map[text]?.color}>{map[text].text || text}</Tag>;
+            return (
+                <Tag color={map[text]?.color}>{map[text]?.text || text}</Tag>
+            );
         },
     },
     {
