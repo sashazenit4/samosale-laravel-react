@@ -86,6 +86,16 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     <Input disabled={true} />
                 </Form.Item>
                 <Form.Item
+                    name="phone_number"
+                    label="Телефон"
+                    rules={[
+                        { required: true, message: 'Введите номер телефона' },
+                        { max: 20, message: 'Максимум 20 символов' },
+                    ]}
+                >
+                    <Input />
+                </Form.Item>
+                <Form.Item
                     name="last_name"
                     label="Фамилия"
                     rules={[
@@ -141,7 +151,7 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     name="relatives_phone"
                     label="Телефон знакомых"
                     rules={[
-                        { required: true, message: 'Введите фамилию' },
+                        { required: true, message: 'Введите номер телефона' },
                         { max: 20, message: 'Максимум 20 символов' },
                     ]}
                 >

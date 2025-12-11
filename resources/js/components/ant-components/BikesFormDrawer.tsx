@@ -96,11 +96,20 @@ const BikeFormDrawer: React.FC<BikeFormDrawerProps> = ({
                     rules={[{ required: true, message: 'Выберите тип' }]}
                 >
                     <Select placeholder="Выберите тип">
-                        <Select.Option value="TRAK">
-                            <Tag color="blue">ТРАК</Tag>
+                        <Select.Option value="MotorRave">
+                            <Tag color="blue">МоторРейв</Tag>
                         </Select.Option>
-                        <Select.Option value="MOVER">
-                            <Tag color="green">МУВЕР</Tag>
+                        <Select.Option value="MotorGlide">
+                            <Tag color="green">МоторГлайд</Tag>
+                        </Select.Option>
+                        <Select.Option value="MotorStream">
+                            <Tag color="blue">МоторСтрим</Tag>
+                        </Select.Option>
+                        <Select.Option value="MotorFlow">
+                            <Tag color="green">МоторФлоу</Tag>
+                        </Select.Option>
+                        <Select.Option value="MotorPulse">
+                            <Tag color="green">МоторПульс</Tag>
                         </Select.Option>
                     </Select>
                 </Form.Item>
