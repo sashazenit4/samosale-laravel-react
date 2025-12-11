@@ -78,6 +78,13 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('clients.index');
 
+    Route::post('/clients', function (Request $request) {
+        $controller = app(\App\Http\Controllers\ClientController::class);
+        $controller->store($request);
+
+        return back()->with('message', 'Клиент создан');
+    })->name('clients.store');
+
     Route::put('/clients/{id}', function (Request $request, $id) {
         $controller = app(\App\Http\Controllers\ClientController::class);
         $controller->update($request, $id); // JSON игнорируется

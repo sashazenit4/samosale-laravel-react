@@ -291,10 +291,17 @@ export const bikeColumns = (
         dataIndex: 'type',
         key: 'type',
         width: 100,
-        render: (text: 'TRAK' | 'MOVER') => {
-            const map = { TRAK: 'TRAK', MOVER: 'MOVER' };
-            const color = text === 'TRAK' ? 'blue' : 'green';
-            return <Tag color={color}>{map[text] || text}</Tag>;
+        render: (text: any) => {
+            const map: any = {
+                MotorPulse: { color: 'blue', text: 'МоторПульс' },
+                MotorRave: { color: 'green', text: 'МоторРейв' },
+                MotorFlow: { color: 'magenta', text: 'МоторФлоу' },
+                MotorStream: { color: 'purple', text: 'МоторСтрим' },
+                MotorGlide: { color: 'orange', text: 'МоторГлайд' },
+            };
+            return (
+                <Tag color={map[text]?.color}>{map[text]?.text || text}</Tag>
+            );
         },
     },
     {

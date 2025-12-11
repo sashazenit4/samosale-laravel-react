@@ -44,7 +44,7 @@ class ClientController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'telegram_id' => 'required|integer|unique:clients,telegram_id',
+            'telegram_id' => 'integer|unique:clients,telegram_id',
             'phone_number' => 'required|string|max:32|unique:clients,phone_number',
             'name' => 'nullable|string|max:255',
             'referral_code' => 'sometimes|string|max:32|unique:clients,referral_code',

@@ -2,7 +2,11 @@ import ClientFormDrawer from '@/components/ant-components/ClientFormDrawer';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+    DownloadOutlined,
+    PlusOutlined,
+    SearchOutlined,
+} from '@ant-design/icons';
 import { Inertia } from '@inertiajs/inertia';
 import { Head, usePage } from '@inertiajs/react';
 import {
@@ -95,7 +99,12 @@ export default function Dashboard() {
         }, 1500);
     };
 
-    const openDrawer = (client?: any) => {
+    const openCreateDrawer = () => {
+        setEditingClient(null);
+        setDrawerVisible(true);
+    };
+
+    const openEditDrawer = (client?: any) => {
         setEditingClient(prepareClient(client) || null);
         setDrawerVisible(true);
     };
@@ -131,41 +140,93 @@ export default function Dashboard() {
     };
 
     const onSubmit = (values: any) => {
-        if (!editingClient) return;
+        if (editingClient) {
+            const payload: any = {
+                phone_number: values.phone_number,
+                bonus_balance: values.bonus_balance,
+                custom_fields: Object.keys(values)
+                    .map((key: string) => {
+                        if (values[key]) {
+                            return {
+                                name: key,
+                                value: values[key],
+                            };
+                        }
+                    })
+                    .filter(
+                        (item) =>
+                            !!item &&
+                            item.name !== 'user_id' &&
+                            item.name !== 'phone_number' &&
+                            item.name !== 'bonus_balance',
+                    ),
+            };
 
-        const payload: any = {
-            custom_fields: Object.keys(values)
-                .map((key: string) => {
-                    if (values[key]) {
-                        return {
-                            name: key,
-                            value: values[key],
-                        };
-                    }
-                })
-                .filter((item) => !!item && item.name !== 'user_id'),
-        };
+            console.log(payload);
 
-        console.log(payload);
+            Inertia.put(`/clients/${editingClient.user_id}`, payload, {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    message.success('Клиент обновлён');
+                    setDrawerVisible(false);
+                    Inertia.reload({ only: ['clients'] });
+                },
+                onError: (errors) => {
+                    console.log('Ошибки:', errors);
+                    message.error('Ошибка при обновлении клиента');
+                },
+            });
+        } else {
+            const payload: any = {
+                phone_number: values.phone_number,
+                name: values.first_name,
+                bonus_balance: values.bonus_balance,
+                custom_fields: Object.keys(values)
+                    .map((key: string) => {
+                        if (values[key]) {
+                            return {
+                                name: key,
+                                value: values[key],
+                            };
+                        }
+                    })
+                    .filter(
+                        (item) =>
+                            !!item &&
+                            item.name !== 'user_id' &&
+                            item.name !== 'phone_number' &&
+                            item.name !== 'bonus_balance',
+                    ),
+            };
 
-        Inertia.put(`/clients/${editingClient.user_id}`, payload, {
-            preserveState: true,
-            preserveScroll: true,
-            onSuccess: () => {
-                message.success('Обновлено');
-                setDrawerVisible(false);
-            },
-            onError: (errors) => {
-                console.log('Ошибки:', errors);
-            },
-        });
+            console.log('Создание клиента:', payload);
+
+            Inertia.post('/clients', payload, {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    message.success('Клиент создан');
+                    setDrawerVisible(false);
+                    Inertia.reload({ only: ['clients'] });
+                },
+                onError: (errors) => {
+                    console.log('Ошибки при создании:', errors);
+                    message.error('Ошибка при создании клиента');
+                },
+            });
+        }
+
         closeDrawer();
     };
 
     function prepareClient(editingClient: any) {
+        if (!editingClient) return null;
+
         const data = Object({
             user_id: editingClient.user_id,
             bonus_balance: editingClient.bonus_balance,
+            phone_number: editingClient.phone_number,
         });
         const dates = [
             'birth_date',
@@ -184,7 +245,7 @@ export default function Dashboard() {
         return data;
     }
 
-    const columns = clientsColumns(openDrawer, openConfirmDelete);
+    const columns = clientsColumns(openEditDrawer, openConfirmDelete);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -223,7 +284,16 @@ export default function Dashboard() {
                         }}
                         size="large"
                     >
-                        <div></div>
+                        <div>
+                            {/* Кнопка "Добавить клиента" */}
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={openCreateDrawer}
+                            >
+                                Добавить клиента
+                            </Button>
+                        </div>
                         <Space style={{ width: '100%' }} size="large">
                             <Input
                                 placeholder="Поиск по ФИО, договору..."
@@ -265,12 +335,17 @@ export default function Dashboard() {
                     />
 
                     <ClientFormDrawer
-                        key={editingClient?.user_id}
+                        key={editingClient?.user_id || 'create'}
                         visible={drawerVisible}
                         onClose={closeDrawer}
                         onSubmit={onSubmit}
                         initialValues={editingClient}
                         isEditing={!!editingClient}
+                        title={
+                            editingClient
+                                ? 'Редактирование клиента'
+                                : 'Добавление клиента'
+                        }
                     />
 
                     <Modal
