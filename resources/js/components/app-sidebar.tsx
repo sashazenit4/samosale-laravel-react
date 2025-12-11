@@ -13,7 +13,7 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { Bike, Calendar, Coins, User } from 'lucide-react';
+import { Bike, Calendar, Coins, Ribbon, User } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -36,6 +36,11 @@ const mainNavItems: NavItem[] = [
         title: 'Велосипеды',
         href: '/bikes',
         icon: Bike,
+    },
+    {
+        title: 'Настройка лояльности',
+        href: '/bonus-config',
+        icon: Ribbon,
     },
 ];
 

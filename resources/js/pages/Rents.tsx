@@ -2,7 +2,7 @@ import RentFormDrawer from '@/components/ant-components/RentsFormDrawer';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { PlusOutlined } from '@ant-design/icons';
+import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { Inertia, PageProps as InertiaPageProps } from '@inertiajs/inertia';
 import { Head, usePage } from '@inertiajs/react';
 import {
@@ -107,6 +107,8 @@ export default function Rents() {
         weeks: 1,
     });
 
+    const [exportLoading, setExportLoading] = useState<boolean>(false); // Состояние для загрузки экспорта
+
     useEffect(() => {
         if (filters.search !== search) setSearch(filters.search || '');
     }, [filters.search]);
@@ -122,6 +124,46 @@ export default function Rents() {
     const handleSearch = () => go({ search });
     const handleTableChange = (pagination: any) =>
         go({ page: pagination.current });
+
+    // Функция экспорта rentals
+    const handleExport = () => {
+        setExportLoading(true);
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/export/rentals'; // URL для экспорта rentals
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
+
+        if (csrfToken) {
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '_token';
+            tokenInput.value = csrfToken;
+            form.appendChild(tokenInput);
+        }
+
+        const formatInput = document.createElement('input');
+        formatInput.type = 'hidden';
+        formatInput.name = 'format';
+        formatInput.value = 'excel';
+        form.appendChild(formatInput);
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        setTimeout(() => {
+            setExportLoading(false);
+            message.success(
+                'Экспорт аренды завершен. Файл открывается в новой вкладке.',
+            );
+        }, 1500);
+    };
 
     const openDrawer = (record?: Rent) => {
         setDrawer({ visible: true, record: record || null });
@@ -151,6 +193,7 @@ export default function Rents() {
             onError: () => message.error('Ошибка удаления'),
         });
     };
+
     const handlePaid = () => {
         if (!paidModal.record) return;
         Inertia.post(
@@ -234,6 +277,7 @@ export default function Rents() {
             },
         });
     }
+
     function completeEarly(payload: any) {
         Inertia.post(`/rents/${drawer.record!.id}/complete-early`, payload, {
             preserveState: true,
@@ -251,6 +295,7 @@ export default function Rents() {
             },
         });
     }
+
     function complete() {
         Inertia.post(
             `/rents/${drawer.record!.id}/complete`,
@@ -370,7 +415,19 @@ export default function Rents() {
                         >
                             Добавить аренду
                         </Button>
+
                         <Space>
+                            {/* Кнопка экспорта аренды */}
+                            <Button
+                                type="primary"
+                                icon={<DownloadOutlined />}
+                                loading={exportLoading}
+                                onClick={handleExport}
+                                style={{ marginLeft: 8 }}
+                            >
+                                Экспорт в Excel
+                            </Button>
+
                             {/* <Input
                                 placeholder="Поиск по клиенту, примечанию..."
                                 prefix={<SearchOutlined />}
@@ -423,6 +480,7 @@ export default function Rents() {
                     >
                         <p>Вы уверены? Это действие нельзя отменить.</p>
                     </Modal>
+
                     <Modal
                         title="Отметить аренду как оплаченную?"
                         open={paidModal.visible}
@@ -435,6 +493,7 @@ export default function Rents() {
                     >
                         <p>Вы уверены? Это действие нельзя отменить.</p>
                     </Modal>
+
                     <Modal
                         title="Продлить аренду"
                         open={extendModal.visible}

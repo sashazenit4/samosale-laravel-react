@@ -2,7 +2,7 @@ import ClientFormDrawer from '@/components/ant-components/ClientFormDrawer';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { SearchOutlined } from '@ant-design/icons';
+import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Inertia } from '@inertiajs/inertia';
 import { Head, usePage } from '@inertiajs/react';
 import {
@@ -21,8 +21,8 @@ import utc from 'dayjs/plugin/utc';
 import { FilterIcon } from 'lucide-react';
 import { useState } from 'react';
 import { clientsColumns } from './columnsConfig';
-dayjs.locale('ru');
 
+dayjs.locale('ru');
 dayjs.extend(utc);
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -39,12 +39,11 @@ export default function Dashboard() {
         visible: false,
         client: null,
     });
+    const [exportLoading, setExportLoading] = useState<boolean>(false);
 
     const { clients, filters } = usePage().props as any;
-
     const [search, setSearch] = useState<string>(filters.search || '');
 
-    // Обработчик смены страницы
     const handleTableChange = (pagination: any) => {
         Inertia.get(
             '/clients',
@@ -55,6 +54,45 @@ export default function Dashboard() {
 
     const handleSearch = () => {
         Inertia.get('/clients', { search }, { preserveState: true });
+    };
+
+    const handleExport = () => {
+        setExportLoading(true);
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/export/clients';
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        const csrfToken = document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content');
+
+        if (csrfToken) {
+            const tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '_token';
+            tokenInput.value = csrfToken;
+            form.appendChild(tokenInput);
+        }
+
+        const formatInput = document.createElement('input');
+        formatInput.type = 'hidden';
+        formatInput.name = 'format';
+        formatInput.value = 'excel';
+        form.appendChild(formatInput);
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        setTimeout(() => {
+            setExportLoading(false);
+            message.success(
+                'Экспорт завершен. Файл открывается в новой вкладке.',
+            );
+        }, 1500);
     };
 
     const openDrawer = (client?: any) => {
@@ -125,7 +163,10 @@ export default function Dashboard() {
     };
 
     function prepareClient(editingClient: any) {
-        const data = Object({ user_id: editingClient.user_id });
+        const data = Object({
+            user_id: editingClient.user_id,
+            bonus_balance: editingClient.bonus_balance,
+        });
         const dates = [
             'birth_date',
             'passport_issue_date',
@@ -194,6 +235,16 @@ export default function Dashboard() {
                                 style={{ width: 300 }}
                             />
                             <Button icon={<FilterIcon size="18px" />}></Button>
+
+                            <Button
+                                type="primary"
+                                icon={<DownloadOutlined />}
+                                loading={exportLoading}
+                                onClick={handleExport}
+                                style={{ marginLeft: 8 }}
+                            >
+                                Экспорт в Excel
+                            </Button>
                         </Space>
                     </Space>
 
@@ -222,7 +273,6 @@ export default function Dashboard() {
                         isEditing={!!editingClient}
                     />
 
-                    {/* Модалка подтверждения удаления */}
                     <Modal
                         title="Удалить клиента?"
                         open={deleteModal.visible}

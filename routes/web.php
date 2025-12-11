@@ -7,12 +7,17 @@ use Inertia\Inertia;
 use App\Http\Controllers\BikeController;
 use App\Http\Controllers\RentalController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\BonusSystemConfigController;
+use App\Http\Controllers\ExportController;
+use App\Http\Controllers\TransactionExportController;
+
 
 use Illuminate\Http\Request;
 use App\Models\Client;
 use App\Models\Bike;
 use App\Models\Rental;
 use App\Models\Payment;
+use App\Models\BonusSystemConfig;
 
 use App\Http\Requests\TariffRequest;
 use App\Http\Requests\StorePaymentRequest;
@@ -37,6 +42,10 @@ Route::get('/payments', function () {
 
 Route::get('/rents', function () {
     return Inertia::render('Rents');
+});
+
+Route::get('/bonus-config', function () {
+    return Inertia::render('Bonus');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -309,3 +318,32 @@ Route::post('/rentals/{rental}/preview-contract', [RentalContractController::cla
 
 Route::post('/rentals/{rentalId}/contract/pdf', [RentalContractController::class, 'generateRentalContractPdf'])
    ->name('rentals.generate-contract-pdf');
+
+Route::middleware('auth')->group(function () {
+    Route::middleware('auth')->get('/bonus-config', function () {
+        return Inertia::render('Bonus', [
+            'configs' => \App\Models\BonusSystemConfig::all(),
+        ]);
+    })->name('bonus-config.index');
+    Route::put('/bonus-config/{key}', function (Request $request, $key) {
+        $config = \App\Models\BonusSystemConfig::where('key', $key)->first();
+        
+        if (!$config) {
+            return back()->withErrors(['error' => 'Настройка не найдена']);
+        }
+        
+        $config->update([
+            'value' => $request->input('value')
+        ]);
+        
+        return back()->with('success', 'Сохранено');
+    })->name('bonus-config.update');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/export', [ExportController::class, 'exportForm'])->name('export.form');
+    Route::get('/export/columns/{table}', [ExportController::class, 'getTableColumns'])->name('export.columns');
+    Route::post('/export/{table}', [ExportController::class, 'exportTable'])->name('export.table');
+    Route::get('/transactions/export/direct', [TransactionExportController::class, 'directExport'])
+        ->name('transactions.export.direct');
+});
