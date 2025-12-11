@@ -77,7 +77,6 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                 layout="vertical"
                 initialValues={initialValues}
                 onFinish={() => {
-                    console.log('AAAA');
                     onSubmit(form.getFieldsValue());
                     form.resetFields();
                 }}
@@ -298,6 +297,9 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                     ]}
                 >
                     <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item name="bonus_balance" label="Бонусный баланс">
+                    <Input />
                 </Form.Item>
             </Form>
         </Drawer>
