@@ -102,7 +102,7 @@ class BonusSystemConfig extends Model
         return $level['bonus_percentage'] ?? self::getPaymentBonusPercentage();
     }
 
-    public static function allConfigs(): Collection
+    public static function allConfigs(): \Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection
     {
         return static::all(['id', 'key', 'value', 'description', 'created_at', 'updated_at'])
             ->map(fn($config) => [

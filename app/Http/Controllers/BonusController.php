@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BonusSystemConfig;
 use App\Models\Client;
 use App\Models\Transaction;
 use App\Models\Payment;
 use App\Models\BonusOperation;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class BonusController extends Controller

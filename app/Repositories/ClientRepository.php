@@ -405,7 +405,6 @@ class ClientRepository
 
         if ($client->referred_by) {
             // Клиент пришел по реферальной ссылке
-            $referrerBonus = $referralBonusConfig['referrer_amount'] ?? 1500;
             $refereeBonus = $referralBonusConfig['referee_amount'] ?? 1500;
 
             // Начисляем бонусы приглашенному
@@ -423,25 +422,6 @@ class ClientRepository
                     'bonus_amount' => $refereeBonus
                 ]
             ]);
-
-            // Начисляем бонусы пригласившему
-            $referrer = Client::where('user_id', $client->referred_by)->first();
-            if ($referrer) {
-                $referrer->bonus_balance += $referrerBonus;
-                $referrer->save();
-
-                BonusOperation::create([
-                    'client_id' => $referrer->user_id,
-                    'amount' => $referrerBonus,
-                    'type' => 'accrual',
-                    'description' => 'Начисление бонусов за приглашение друга',
-                    'metadata' => [
-                        'operation_type' => 'referral_invite',
-                        'referee_id' => $client->user_id,
-                        'bonus_amount' => $referrerBonus
-                    ]
-                ]);
-            }
         } else {
             // Обычная регистрация
             $client->bonus_balance += $welcomeBonus;
