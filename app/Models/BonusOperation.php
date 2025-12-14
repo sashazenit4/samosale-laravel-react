@@ -15,12 +15,16 @@ class BonusOperation extends Model
         'amount',
         'type',
         'description',
-        'metadata'
+        'metadata',
+        'expires_at',
+        'is_burnable',
     ];
 
     protected $casts = [
         'metadata' => 'array',
-        'amount' => 'decimal:2'
+        'amount' => 'decimal:2',
+        'expires_at' => 'datetime',
+        'is_burnable' => 'boolean',
     ];
 
     public function client()
