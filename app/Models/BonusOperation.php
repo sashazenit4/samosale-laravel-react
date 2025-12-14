@@ -36,4 +36,25 @@ class BonusOperation extends Model
     {
         return $this->belongsTo(Transaction::class);
     }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if ($model->is_burnable && !$model->expires_at) {
+                $model->expires_at = now()->addDays(
+                    BonusSystemConfig::getBonusLifetimeDays()
+                );
+            }
+        });
+
+        static::updating(function ($model) {
+            if ($model->is_burnable && !$model->expires_at && $model->isDirty('is_burnable')) {
+                $model->expires_at = now()->addDays(
+                    BonusSystemConfig::getBonusLifetimeDays()
+                );
+            }
+        });
+    }
 }

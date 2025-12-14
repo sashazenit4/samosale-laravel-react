@@ -7,7 +7,9 @@ use App\Models\Client;
 use App\Models\Transaction;
 use App\Models\Payment;
 use App\Models\BonusOperation;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BonusController extends Controller
 {
@@ -155,7 +157,8 @@ class BonusController extends Controller
                         'bonus_percentage' => $bonusPercentage,
                         'client_level' => $clientLevel['level'],
                         'total_spent' => $totalSpent
-                    ]
+                    ],
+                    'is_burnable' => true,
                 ]);
 
                 $results[] = [
@@ -227,7 +230,7 @@ class BonusController extends Controller
     /**
      * Ручное начисление бонусов (для админки)
      */
-    public function manualAccrual($clientId, $amount, $description = 'Ручное начисление бонусов')
+    public function manualAccrual($clientId, $amount, $burnable = true, $description = 'Ручное начисление бонусов')
     {
         try {
             DB::beginTransaction();
@@ -247,7 +250,8 @@ class BonusController extends Controller
                 'metadata' => [
                     'operation_type' => 'manual',
                     'admin_id' => auth()->id() ?? null
-                ]
+                ],
+                'is_burnable' => $burnable,
             ]);
 
             DB::commit();
@@ -294,7 +298,7 @@ class BonusController extends Controller
                 'metadata' => [
                     'operation_type' => 'manual',
                     'admin_id' => auth()->id() ?? null
-                ]
+                ],
             ]);
 
             DB::commit();

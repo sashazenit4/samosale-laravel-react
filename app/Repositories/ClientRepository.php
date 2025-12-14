@@ -420,7 +420,8 @@ class ClientRepository
                     'operation_type' => 'referral_registration',
                     'referrer_id' => $client->referred_by,
                     'bonus_amount' => $refereeBonus
-                ]
+                ],
+                'is_burnable' => true,
             ]);
         } else {
             // Обычная регистрация
@@ -435,7 +436,8 @@ class ClientRepository
                 'metadata' => [
                     'operation_type' => 'welcome_bonus',
                     'bonus_amount' => $welcomeBonus
-                ]
+                ],
+                'is_burnable' => true,
             ]);
         }
     }
