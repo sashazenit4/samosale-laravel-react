@@ -12,8 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('bonus_operations', function (Blueprint $table) {
-            $table->timestamp('expires_at')->nullable()->after('metadata');
-            $table->boolean('is_burnable')->default(true)->after('expires_at');
+            $table->decimal('used_amount', 10, 2)->default(0)->after('amount');
         });
     }
 
@@ -23,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('bonus_operations', function (Blueprint $table) {
-            $table->dropColumn(['expires_at', 'is_burnable']);
+            $table->dropColumn('used_amount');
         });
     }
 };
