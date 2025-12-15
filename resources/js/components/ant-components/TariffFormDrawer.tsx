@@ -65,10 +65,10 @@ const TariffFormDrawer: React.FC<TariffFormDrawerProps> = ({
 
                 <Form.Item
                     name="power"
-                    label="Мощность (Вт)"
+                    label="Емкость (Ah)"
                     rules={[
-                        { required: true, message: 'Укажите мощность' },
-                        { type: 'number', min: 1, message: 'Мощность > 0' },
+                        { required: true, message: 'Укажите емкость' },
+                        { type: 'number', min: 1, message: 'Емкость > 0' },
                     ]}
                 >
                     <InputNumber style={{ width: '100%' }} />
