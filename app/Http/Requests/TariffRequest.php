@@ -18,7 +18,7 @@ class TariffRequest extends FormRequest
 
         $rules = [
             'program' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
-            'power' => [$isUpdate ? 'sometimes' : 'required', 'integer', 'in:15,22,43,45'],
+            'power' => [$isUpdate ? 'sometimes' : 'required', 'integer'],
             'price_month' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
             'price_week1' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
             'price_week2' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0'],
