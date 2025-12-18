@@ -66,7 +66,13 @@ class ClientRepository
             }
 
             if (!isset($data['referred_by']) && isset($data['telegram_id'])) {
-                $data['referred_by'] = $this->getReferredByFromInvites($data['telegram_id']);
+                $loyaltyInfo = [
+                    'has_welcome_bonus' => false,
+                    'is_loyalty_member' => false,
+                ];
+                $data['referred_by'] = $this->getReferredByFromInvites($data['telegram_id'], $loyaltyInfo);
+                $data['has_welcome_bonus'] = $loyaltyInfo['has_welcome_bonus'];
+                $data['is_loyalty_member'] = $loyaltyInfo['is_loyalty_member'];
             }
 
             $customFields = $data['custom_fields'] ?? [];
@@ -391,11 +397,28 @@ class ClientRepository
         ];
     }
 
-    protected function getReferredByFromInvites(int $telegramId): ?int
+    protected function getReferredByFromInvites(int $telegramId, array &$loyaltyInfo): ?int
     {
-        return Client::whereHas('referralInvites', function ($query) use ($telegramId) {
+        $inviteInfo = Client::whereHas('referralInvites', function ($query) use ($telegramId) {
             $query->where('telegram_id', $telegramId);
-        })->value('user_id');
+        });
+        $refCode = $inviteInfo->value('referral_code');
+        $loyaltyInfo = match($refCode) {
+            'CORPORATE' => [
+                'is_loyalty_member' => false,
+                'has_welcome_bonus' => false,
+            ],
+            'LOYALTY' => [
+                'is_loyalty_member' => true,
+                'has_welcome_bonus' => false,
+            ],
+            default => [
+                'is_loyalty_member' => true,
+                'has_welcome_bonus' => true,
+            ],
+        };
+
+        return $inviteInfo->value('user_id');
     }
 
     private function accrueRegistrationBonuses(Client $client): void
