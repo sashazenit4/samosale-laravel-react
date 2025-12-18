@@ -400,7 +400,7 @@ class ClientRepository
     protected function getReferredByFromInvites(int $telegramId, array &$loyaltyInfo): ?int
     {
         $inviteInfo = ReferralInvite::where('telegram_id', $telegramId)->first();
-        $refCode = $inviteInfo->value('referral_code');
+        $refCode = $inviteInfo->referral_code;
         $loyaltyInfo = match($refCode) {
             'CORPORATE' => [
                 'is_loyalty_member' => false,
