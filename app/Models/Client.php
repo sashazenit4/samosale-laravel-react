@@ -46,6 +46,8 @@ class Client extends Model
         'referred_by',
         'balance',
         'bonus_balance', // бонусные баллы
+        'has_welcome_bonus',
+        'is_loyalty_member',
     ];
 
     /**
