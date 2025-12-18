@@ -399,9 +399,7 @@ class ClientRepository
 
     protected function getReferredByFromInvites(int $telegramId, array &$loyaltyInfo): ?int
     {
-        $inviteInfo = Client::whereHas('referralInvites', function ($query) use ($telegramId) {
-            $query->where('telegram_id', $telegramId);
-        });
+        $inviteInfo = ReferralInvite::where('telegram_id', $telegramId)->first();
         $refCode = $inviteInfo->value('referral_code');
         $loyaltyInfo = match($refCode) {
             'CORPORATE' => [
@@ -418,7 +416,9 @@ class ClientRepository
             ],
         };
 
-        return $inviteInfo->value('user_id');
+        return Client::whereHas('referralInvites', function ($query) use ($telegramId) {
+            $query->where('telegram_id', $telegramId);
+        })->value('user_id');
     }
 
     private function accrueRegistrationBonuses(Client $client): void
