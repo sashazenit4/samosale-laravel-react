@@ -60,7 +60,7 @@ class ReferralInviteController extends Controller
         }
 
         // Проверяем, что referral_code существует у кого-то из клиентов
-        if (!ReferralInvite::isValidReferralCode($request->referral_code) || 'LOYALTY' === $request->referral_code || 'CORPORATE' === $request->referral_code) {
+        if (!ReferralInvite::isValidReferralCode($request->referral_code) || 'LOYALTY' !== $request->referral_code || 'CORPORATE' !== $request->referral_code) {
             return response()->json([
                 'success' => false,
                 'message' => 'Реферальный код не найден среди зарегистрированных клиентов'
