@@ -423,6 +423,10 @@ class ClientRepository
 
     private function accrueRegistrationBonuses(Client $client): void
     {
+        if (!$client->has_welcome_bonus || $client->is_loyalty_member) {
+            return;
+        }
+
         $referralBonusConfig = BonusSystemConfig::getReferralBonus();
         $welcomeBonus = BonusSystemConfig::getWelcomeBonus();
 

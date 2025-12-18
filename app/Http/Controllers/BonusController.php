@@ -23,10 +23,13 @@ class BonusController extends Controller
 
             $transaction = Transaction::findOrFail($transactionId);
             $client = Client::where('user_id', $transaction->client_id)->firstOrFail();
+            if (!$client->is_loyalty_member) {
+                throw new \Exception('Клиент не является участником программы лояльности');
+            }
 
             // Проверяем доступный бонусный баланс (исключая истекшие)
             $availableBalance = $client->getAvailableBonusBalance();
-            
+
             if ($availableBalance < $deductAmount) {
                 throw new \Exception('Недостаточно бонусов для списания. Доступно: ' . $availableBalance);
             }
@@ -163,6 +166,9 @@ class BonusController extends Controller
                 if (!$client) {
                     continue;
                 }
+                if (!$client->is_loyalty_member) {
+                    throw new \Exception('Клиент не является участником программы лояльности');
+                }
 
                 // Рассчитываем общую сумму потраченных денег клиентом
                 $totalSpent = Payment::where('client_id', $client->user_id)
@@ -276,6 +282,10 @@ class BonusController extends Controller
 
             $client = Client::where('user_id', $clientId)->firstOrFail();
 
+            if (!$client->is_loyalty_member) {
+                throw new \Exception('Клиент не является участником программы лояльности');
+            }
+
             // Начисляем бонусы
             $client->bonus_balance += $amount;
             $client->save();
@@ -320,9 +330,13 @@ class BonusController extends Controller
 
             $client = Client::where('user_id', $clientId)->firstOrFail();
 
+            if (!$client->is_loyalty_member) {
+                throw new \Exception('Клиент не является участником программы лояльности');
+            }
+
             // Проверяем доступный бонусный баланс
             $availableBalance = $client->getAvailableBonusBalance();
-            
+
             if ($availableBalance < $amount) {
                 throw new \Exception('Недостаточно бонусов для списания. Доступно: ' . $availableBalance);
             }
