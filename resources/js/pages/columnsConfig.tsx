@@ -464,7 +464,7 @@ export const tariffColumns = (
         },
     },
     {
-        title: 'Мощность',
+        title: 'Емкость',
         dataIndex: 'power',
         key: 'power',
         width: 100,
