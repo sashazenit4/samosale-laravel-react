@@ -163,7 +163,8 @@ const ClientFormDrawer: React.FC<ClientFormDrawerProps> = ({
                         { required: true, message: 'Введите серию паспорта' },
                         {
                             max: 20,
-                            message: 'Серия должна содержать 20 символов',
+                            message:
+                                'Серия должна содержать не более 20 символов',
                         },
                     ]}
                 >
