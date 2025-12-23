@@ -102,7 +102,41 @@ class BonusSystemConfig extends Model
         return $level['bonus_percentage'] ?? self::getPaymentBonusPercentage();
     }
 
-    public static function allConfigs(): Collection
+    /**
+     * Получить время жизни бонуса в днях
+     */
+    public static function getBonusLifetimeDays(): int
+    {
+        return self::getConfig('bonus_lifetime_days')['days'] ?? 30;
+    }
+
+    /**
+     * Получить условие для получения реферального бонуса
+     */
+    public static function getReferralBonusCondition(): array
+    {
+        return self::getConfig('referral_bonus_condition', ['referee_min_spent' => 0]);
+    }
+
+    /**
+     * Получить минимальную сумму, которую должен потратить реферал
+     */
+    public static function getReferralMinSpent(): float
+    {
+        $condition = self::getReferralBonusCondition();
+        return $condition['referee_min_spent'] ?? 0;
+    }
+
+    /**
+     * Проверить, выполнено ли условие для получения реферального бонуса
+     */
+    public static function isReferralBonusConditionMet(float $refereeTotalSpent): bool
+    {
+        $minSpent = self::getReferralMinSpent();
+        return $refereeTotalSpent >= $minSpent;
+    }
+
+    public static function allConfigs(): \Illuminate\Database\Eloquent\Collection|\Illuminate\Support\Collection
     {
         return static::all(['id', 'key', 'value', 'description', 'created_at', 'updated_at'])
             ->map(fn($config) => [

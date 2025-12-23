@@ -18,3 +18,9 @@ Schedule::command('transactions:check-multiple-statuses')
 Schedule::command('transactions:check-expired')
     ->everyMinute()
     ->withoutOverlapping();
+
+// Сжигание истекших бонусов каждый час
+Schedule::command('bonuses:burn-expired')
+    ->hourly()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/bonus-burn.log'));

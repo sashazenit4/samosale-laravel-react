@@ -129,4 +129,41 @@ class BonusSystemConfigController extends Controller
             'client_level' => $level
         ]);
     }
+
+    /**
+     * Получить время жизни бонуса
+     */
+    public function getBonusLifetimeDays(): JsonResponse
+    {
+        $days = BonusSystemConfig::getBonusLifetimeDays();
+        return response()->json(['bonus_lifetime_days' => $days]);
+    }
+
+    /**
+     * Получить условие для реферального бонуса
+     */
+    public function getReferralBonusCondition(): JsonResponse
+    {
+        $condition = BonusSystemConfig::getReferralBonusCondition();
+        return response()->json(['referral_bonus_condition' => $condition]);
+    }
+
+    /**
+     * Проверить условие для реферального бонуса
+     */
+    public function checkReferralBonusCondition(Request $request): JsonResponse
+    {
+        $request->validate([
+            'referee_total_spent' => 'required|numeric|min:0'
+        ]);
+
+        $isConditionMet = BonusSystemConfig::isReferralBonusConditionMet($request->referee_total_spent);
+        $minSpent = BonusSystemConfig::getReferralMinSpent();
+
+        return response()->json([
+            'referee_total_spent' => $request->referee_total_spent,
+            'min_required_spent' => $minSpent,
+            'is_condition_met' => $isConditionMet
+        ]);
+    }
 }

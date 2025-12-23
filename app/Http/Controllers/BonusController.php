@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BonusSystemConfig;
 use App\Models\Client;
 use App\Models\Transaction;
 use App\Models\Payment;
 use App\Models\BonusOperation;
-use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BonusController extends Controller
 {
     /**
-     * Списание бонусов при создании транзакции (улучшенная версия)
+     * Списание бонусов при создании транзакции (улучшенная версия с FIFO)
      */
     public function deductBonusForTransaction($transactionId, $deductAmount)
     {
@@ -21,10 +23,15 @@ class BonusController extends Controller
 
             $transaction = Transaction::findOrFail($transactionId);
             $client = Client::where('user_id', $transaction->client_id)->firstOrFail();
+            if (!$client->is_loyalty_member) {
+                throw new \Exception('Клиент не является участником программы лояльности');
+            }
 
-            // Проверяем бонусный баланс
-            if ($client->bonus_balance < $deductAmount) {
-                throw new \Exception('Недостаточно бонусов для списания');
+            // Проверяем доступный бонусный баланс (исключая истекшие)
+            $availableBalance = $client->getAvailableBonusBalance();
+
+            if ($availableBalance < $deductAmount) {
+                throw new \Exception('Недостаточно бонусов для списания. Доступно: ' . $availableBalance);
             }
 
             // Проверяем, не списаны ли уже бонусы за эту транзакцию
@@ -34,6 +41,40 @@ class BonusController extends Controller
 
             if ($existingDeduction) {
                 throw new \Exception('Бонусы уже списаны за эту транзакцию');
+            }
+
+            // Получаем доступные бонусы в порядке FIFO (старейшие первые)
+            $availableBonuses = BonusOperation::where('client_id', $client->user_id)
+                ->accruals()
+                ->available()
+                ->orderBy('created_at', 'asc') // FIFO: oldest first
+                ->orderBy('expires_at', 'asc') // Then by expiration date
+                ->get();
+
+            $remainingToDeduct = $deductAmount;
+            $usedBonuses = [];
+
+            // Используем бонусы по принципу FIFO
+            foreach ($availableBonuses as $bonus) {
+                if ($remainingToDeduct <= 0) {
+                    break;
+                }
+
+                $availableAmount = $bonus->getAvailableAmount();
+                $amountToUse = min($availableAmount, $remainingToDeduct);
+
+                if ($amountToUse > 0) {
+                    $bonus->useAmount($amountToUse);
+                    $usedBonuses[] = [
+                        'bonus_id' => $bonus->id,
+                        'amount' => $amountToUse,
+                    ];
+                    $remainingToDeduct -= $amountToUse;
+                }
+            }
+
+            if ($remainingToDeduct > 0) {
+                throw new \Exception('Не удалось списать все бонусы. Осталось: ' . $remainingToDeduct);
             }
 
             // Списание бонусов (из bonus_balance)
@@ -58,7 +99,8 @@ class BonusController extends Controller
                     'payment_id' => $transaction->payment_id,
                     'transaction_amount' => $transaction->amount,
                     'deducted_amount' => $deductAmount,
-                    'final_amount_paid' => $transaction->amount
+                    'final_amount_paid' => $transaction->amount,
+                    'used_bonuses' => $usedBonuses, // Track which bonuses were used
                 ]
             ]);
 
@@ -124,6 +166,9 @@ class BonusController extends Controller
                 if (!$client) {
                     continue;
                 }
+                if (!$client->is_loyalty_member) {
+                    throw new \Exception('Клиент не является участником программы лояльности');
+                }
 
                 // Рассчитываем общую сумму потраченных денег клиентом
                 $totalSpent = Payment::where('client_id', $client->user_id)
@@ -155,7 +200,8 @@ class BonusController extends Controller
                         'bonus_percentage' => $bonusPercentage,
                         'client_level' => $clientLevel['level'],
                         'total_spent' => $totalSpent
-                    ]
+                    ],
+                    'is_burnable' => true,
                 ]);
 
                 $results[] = [
@@ -220,6 +266,8 @@ class BonusController extends Controller
             'success' => true,
             'client_id' => $clientId,
             'bonus_balance' => $client->bonus_balance,
+            'available_bonus_balance' => $client->getAvailableBonusBalance(),
+            'expired_bonus_amount' => $client->getExpiredBonusAmount(),
             'real_balance' => $client->balance
         ];
     }
@@ -227,12 +275,16 @@ class BonusController extends Controller
     /**
      * Ручное начисление бонусов (для админки)
      */
-    public function manualAccrual($clientId, $amount, $description = 'Ручное начисление бонусов')
+    public function manualAccrual($clientId, $amount, $burnable = true, $description = 'Ручное начисление бонусов')
     {
         try {
             DB::beginTransaction();
 
             $client = Client::where('user_id', $clientId)->firstOrFail();
+
+            if (!$client->is_loyalty_member) {
+                throw new \Exception('Клиент не является участником программы лояльности');
+            }
 
             // Начисляем бонусы
             $client->bonus_balance += $amount;
@@ -247,7 +299,8 @@ class BonusController extends Controller
                 'metadata' => [
                     'operation_type' => 'manual',
                     'admin_id' => auth()->id() ?? null
-                ]
+                ],
+                'is_burnable' => $burnable,
             ]);
 
             DB::commit();
@@ -268,7 +321,7 @@ class BonusController extends Controller
     }
 
     /**
-     * Ручное списание бонусов (для админки)
+     * Ручное списание бонусов (для админки) с FIFO
      */
     public function manualDeduction($clientId, $amount, $description = 'Ручное списание бонусов')
     {
@@ -277,8 +330,49 @@ class BonusController extends Controller
 
             $client = Client::where('user_id', $clientId)->firstOrFail();
 
-            if ($client->bonus_balance < $amount) {
-                throw new \Exception('Недостаточно бонусов для списания');
+            if (!$client->is_loyalty_member) {
+                throw new \Exception('Клиент не является участником программы лояльности');
+            }
+
+            // Проверяем доступный бонусный баланс
+            $availableBalance = $client->getAvailableBonusBalance();
+
+            if ($availableBalance < $amount) {
+                throw new \Exception('Недостаточно бонусов для списания. Доступно: ' . $availableBalance);
+            }
+
+            // Получаем доступные бонусы в порядке FIFO
+            $availableBonuses = BonusOperation::where('client_id', $client->user_id)
+                ->accruals()
+                ->available()
+                ->orderBy('created_at', 'asc')
+                ->orderBy('expires_at', 'asc')
+                ->get();
+
+            $remainingToDeduct = $amount;
+            $usedBonuses = [];
+
+            // Используем бонусы по принципу FIFO
+            foreach ($availableBonuses as $bonus) {
+                if ($remainingToDeduct <= 0) {
+                    break;
+                }
+
+                $availableAmount = $bonus->getAvailableAmount();
+                $amountToUse = min($availableAmount, $remainingToDeduct);
+
+                if ($amountToUse > 0) {
+                    $bonus->useAmount($amountToUse);
+                    $usedBonuses[] = [
+                        'bonus_id' => $bonus->id,
+                        'amount' => $amountToUse,
+                    ];
+                    $remainingToDeduct -= $amountToUse;
+                }
+            }
+
+            if ($remainingToDeduct > 0) {
+                throw new \Exception('Не удалось списать все бонусы. Осталось: ' . $remainingToDeduct);
             }
 
             // Списание бонусов
@@ -293,8 +387,9 @@ class BonusController extends Controller
                 'description' => $description,
                 'metadata' => [
                     'operation_type' => 'manual',
-                    'admin_id' => auth()->id() ?? null
-                ]
+                    'admin_id' => auth()->id() ?? null,
+                    'used_bonuses' => $usedBonuses,
+                ],
             ]);
 
             DB::commit();

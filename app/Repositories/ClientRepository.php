@@ -66,7 +66,13 @@ class ClientRepository
             }
 
             if (!isset($data['referred_by']) && isset($data['telegram_id'])) {
-                $data['referred_by'] = $this->getReferredByFromInvites($data['telegram_id']);
+                $loyaltyInfo = [
+                    'has_welcome_bonus' => false,
+                    'is_loyalty_member' => false,
+                ];
+                $data['referred_by'] = $this->getReferredByFromInvites($data['telegram_id'], $loyaltyInfo);
+                $data['has_welcome_bonus'] = $loyaltyInfo['has_welcome_bonus'];
+                $data['is_loyalty_member'] = $loyaltyInfo['is_loyalty_member'];
             }
 
             $customFields = $data['custom_fields'] ?? [];
@@ -391,8 +397,25 @@ class ClientRepository
         ];
     }
 
-    protected function getReferredByFromInvites(int $telegramId): ?int
+    protected function getReferredByFromInvites(int $telegramId, array &$loyaltyInfo): ?int
     {
+        $inviteInfo = ReferralInvite::where('telegram_id', $telegramId)->first();
+        $refCode = $inviteInfo->referral_code;
+        $loyaltyInfo = match($refCode) {
+            'CORPORATE' => [
+                'is_loyalty_member' => false,
+                'has_welcome_bonus' => false,
+            ],
+            'LOYALTY' => [
+                'is_loyalty_member' => true,
+                'has_welcome_bonus' => false,
+            ],
+            default => [
+                'is_loyalty_member' => true,
+                'has_welcome_bonus' => true,
+            ],
+        };
+
         return Client::whereHas('referralInvites', function ($query) use ($telegramId) {
             $query->where('telegram_id', $telegramId);
         })->value('user_id');
@@ -400,12 +423,15 @@ class ClientRepository
 
     private function accrueRegistrationBonuses(Client $client): void
     {
+        if (!$client->has_welcome_bonus || $client->is_loyalty_member) {
+            return;
+        }
+
         $referralBonusConfig = BonusSystemConfig::getReferralBonus();
         $welcomeBonus = BonusSystemConfig::getWelcomeBonus();
 
         if ($client->referred_by) {
             // Клиент пришел по реферальной ссылке
-            $referrerBonus = $referralBonusConfig['referrer_amount'] ?? 1500;
             $refereeBonus = $referralBonusConfig['referee_amount'] ?? 1500;
 
             // Начисляем бонусы приглашенному
@@ -421,27 +447,9 @@ class ClientRepository
                     'operation_type' => 'referral_registration',
                     'referrer_id' => $client->referred_by,
                     'bonus_amount' => $refereeBonus
-                ]
+                ],
+                'is_burnable' => true,
             ]);
-
-            // Начисляем бонусы пригласившему
-            $referrer = Client::where('user_id', $client->referred_by)->first();
-            if ($referrer) {
-                $referrer->bonus_balance += $referrerBonus;
-                $referrer->save();
-
-                BonusOperation::create([
-                    'client_id' => $referrer->user_id,
-                    'amount' => $referrerBonus,
-                    'type' => 'accrual',
-                    'description' => 'Начисление бонусов за приглашение друга',
-                    'metadata' => [
-                        'operation_type' => 'referral_invite',
-                        'referee_id' => $client->user_id,
-                        'bonus_amount' => $referrerBonus
-                    ]
-                ]);
-            }
         } else {
             // Обычная регистрация
             $client->bonus_balance += $welcomeBonus;
@@ -455,7 +463,8 @@ class ClientRepository
                 'metadata' => [
                     'operation_type' => 'welcome_bonus',
                     'bonus_amount' => $welcomeBonus
-                ]
+                ],
+                'is_burnable' => true,
             ]);
         }
     }

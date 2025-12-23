@@ -46,6 +46,8 @@ class Client extends Model
         'referred_by',
         'balance',
         'bonus_balance', // бонусные баллы
+        'has_welcome_bonus',
+        'is_loyalty_member',
     ];
 
     /**
@@ -281,5 +283,35 @@ class Client extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class, 'client_id', 'user_id');
+    }
+
+    /**
+     * Get available bonus balance (excluding expired bonuses)
+     */
+    public function getAvailableBonusBalance(): float
+    {
+        $availableBonuses = $this->bonusOperations()
+            ->accruals()
+            ->available()
+            ->get();
+
+        return $availableBonuses->sum(function ($bonus) {
+            return $bonus->getAvailableAmount();
+        });
+    }
+
+    /**
+     * Get expired bonus amount that should be burned
+     */
+    public function getExpiredBonusAmount(): float
+    {
+        $expiredBonuses = $this->bonusOperations()
+            ->accruals()
+            ->expired()
+            ->get();
+
+        return $expiredBonuses->sum(function ($bonus) {
+            return $bonus->getAvailableAmount();
+        });
     }
 }
