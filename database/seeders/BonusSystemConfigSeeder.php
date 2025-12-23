@@ -23,7 +23,15 @@ class BonusSystemConfigSeeder extends Seeder
                 'key' => 'referral_bonus_condition',
                 'value' => ['referee_min_spent' => 1000],
                 'description' => 'Минимальная сумма, которую должен потратить приглашенный, чтобы пригласивший получил бонус'
-            ]
+            ],
+            [
+                'key' => 'welcome_bonus',
+                'value' => [
+                    'amount' => 500,
+                    'expiration_days' => 60 // Добавляем срок действия приветственного бонуса
+                ],
+                'description' => 'Приветственный бонус: сумма и срок действия (в днях)'
+            ],
         ];
 
         foreach ($configs as $config) {

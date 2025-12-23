@@ -449,6 +449,9 @@ class ClientRepository
                     'bonus_amount' => $refereeBonus
                 ],
                 'is_burnable' => true,
+                'expires_at' => now()->addDays(
+                    BonusSystemConfig::getWelcomeBonusExpirationDays(),
+                ),
             ]);
         } else {
             // Обычная регистрация
@@ -465,6 +468,9 @@ class ClientRepository
                     'bonus_amount' => $welcomeBonus
                 ],
                 'is_burnable' => true,
+                'expires_at' => now()->addDays(
+                    BonusSystemConfig::getWelcomeBonusExpirationDays(),
+                ),
             ]);
         }
     }

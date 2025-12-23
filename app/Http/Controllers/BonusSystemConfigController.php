@@ -95,8 +95,86 @@ class BonusSystemConfigController extends Controller
      */
     public function getWelcomeBonus(): JsonResponse
     {
-        $amount = BonusSystemConfig::getWelcomeBonus();
-        return response()->json(['welcome_bonus_amount' => $amount]);
+        $welcomeBonus = BonusSystemConfig::getWelcomeBonus();
+        return response()->json([
+            'welcome_bonus' => $welcomeBonus
+        ]);
+    }
+
+    /**
+     * Получить информацию о приветственном бонусе с деталями сгорания
+     */
+    public function getWelcomeBonusExpirationInfo(Request $request): JsonResponse
+    {
+        $request->validate([
+            'award_date' => 'nullable|date'
+        ]);
+
+        $awardDate = $request->award_date ? \Carbon\Carbon::parse($request->award_date) : null;
+        $info = BonusSystemConfig::getWelcomeBonusWithExpirationInfo($awardDate);
+
+        return response()->json([
+            'welcome_bonus_expiration_info' => $info
+        ]);
+    }
+
+    /**
+     * Получить оставшиеся дни до сгорания приветственного бонуса
+     */
+    public function getWelcomeBonusRemainingDays(Request $request): JsonResponse
+    {
+        $request->validate([
+            'award_date' => 'required|date'
+        ]);
+
+        $awardDate = \Carbon\Carbon::parse($request->award_date);
+        $remainingDays = BonusSystemConfig::getWelcomeBonusRemainingDays($awardDate);
+
+        return response()->json([
+            'award_date' => $awardDate->toDateString(),
+            'remaining_days' => $remainingDays,
+            'is_expired' => $remainingDays <= 0
+        ]);
+    }
+
+    /**
+     * Проверить истек ли срок действия приветственного бонуса
+     */
+    public function checkWelcomeBonusExpiration(Request $request): JsonResponse
+    {
+        $request->validate([
+            'award_date' => 'required|date'
+        ]);
+
+        $awardDate = \Carbon\Carbon::parse($request->award_date);
+        $isExpired = BonusSystemConfig::isWelcomeBonusExpired($awardDate);
+        $expirationDate = BonusSystemConfig::getWelcomeBonusExpirationDate($awardDate);
+
+        return response()->json([
+            'award_date' => $awardDate->toDateString(),
+            'expiration_date' => $expirationDate->toDateString(),
+            'is_expired' => $isExpired,
+            'total_valid_days' => BonusSystemConfig::getWelcomeBonusExpirationDays()
+        ]);
+    }
+
+    /**
+     * Получить дату сгорания приветственного бонуса
+     */
+    public function getWelcomeBonusExpirationDate(Request $request): JsonResponse
+    {
+        $request->validate([
+            'award_date' => 'nullable|date'
+        ]);
+
+        $awardDate = $request->award_date ? \Carbon\Carbon::parse($request->award_date) : null;
+        $expirationDate = BonusSystemConfig::getWelcomeBonusExpirationDate($awardDate);
+
+        return response()->json([
+            'award_date' => $awardDate ? $awardDate->toDateString() : now()->toDateString(),
+            'expiration_date' => $expirationDate->toDateString(),
+            'expiration_days' => BonusSystemConfig::getWelcomeBonusExpirationDays()
+        ]);
     }
 
     public function getReferralBonus(): JsonResponse

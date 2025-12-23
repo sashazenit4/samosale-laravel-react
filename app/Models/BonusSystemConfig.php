@@ -43,11 +43,82 @@ class BonusSystemConfig extends Model
     }
 
     /**
-     * Получить бонус за регистрацию
+     * Получить приветственный бонус
      */
-    public static function getWelcomeBonus(): int
+    public static function getWelcomeBonus(): array
     {
-        return self::getConfig('welcome_bonus')['amount'] ?? 500;
+        return self::getConfig('welcome_bonus', [
+            'amount' => 500,
+            'expiration_days' => 60
+        ]);
+    }
+
+    /**
+     * Получить сумму приветственного бонуса
+     */
+    public static function getWelcomeBonusAmount(): int
+    {
+        $welcomeBonus = self::getWelcomeBonus();
+        return $welcomeBonus['amount'] ?? 500;
+    }
+
+    /**
+     * Получить количество дней до сгорания приветственного бонуса
+     */
+    public static function getWelcomeBonusExpirationDays(): int
+    {
+        $welcomeBonus = self::getWelcomeBonus();
+        return $welcomeBonus['expiration_days'] ?? 60;
+    }
+
+    /**
+     * Получить дату сгорания приветственного бонуса
+     */
+    public static function getWelcomeBonusExpirationDate(\DateTimeInterface $awardDate = null): \DateTimeInterface
+    {
+        $awardDate = $awardDate ?? now();
+        $expirationDays = self::getWelcomeBonusExpirationDays();
+
+        return $awardDate->copy()->addDays($expirationDays);
+    }
+
+    /**
+     * Проверить, истек ли срок действия приветственного бонуса
+     */
+    public static function isWelcomeBonusExpired(\DateTimeInterface $awardDate): bool
+    {
+        $expirationDate = self::getWelcomeBonusExpirationDate($awardDate);
+        return now()->greaterThan($expirationDate);
+    }
+
+    /**
+     * Получить оставшееся количество дней до сгорания приветственного бонуса
+     */
+    public static function getWelcomeBonusRemainingDays(\DateTimeInterface $awardDate): int
+    {
+        if (self::isWelcomeBonusExpired($awardDate)) {
+            return 0;
+        }
+
+        $expirationDate = self::getWelcomeBonusExpirationDate($awardDate);
+        return now()->diffInDays($expirationDate, false);
+    }
+
+    /**
+     * Получить информацию о приветственном бонусе с деталями сгорания
+     */
+    public static function getWelcomeBonusWithExpirationInfo(\DateTimeInterface $awardDate = null): array
+    {
+        $welcomeBonus = self::getWelcomeBonus();
+        $awardDate = $awardDate ?? now();
+
+        return array_merge($welcomeBonus, [
+            'award_date' => $awardDate,
+            'expiration_date' => self::getWelcomeBonusExpirationDate($awardDate),
+            'is_expired' => self::isWelcomeBonusExpired($awardDate),
+            'remaining_days' => self::getWelcomeBonusRemainingDays($awardDate),
+            'total_days' => $welcomeBonus['expiration_days'] ?? 60
+        ]);
     }
 
     /**
