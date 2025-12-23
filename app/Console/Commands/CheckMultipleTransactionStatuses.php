@@ -65,6 +65,7 @@ class CheckMultipleTransactionStatuses extends Command
                 }
             }
         }
+        $bonusController->accrueBonusesForPaidTransactions();
 
         $this->info("Bonus deductions completed: {$bonusDeducted} transactions");
 
