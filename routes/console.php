@@ -24,3 +24,8 @@ Schedule::command('bonuses:burn-expired')
     ->hourly()
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/bonus-burn.log'));
+
+Schedule::command('bonuses:check-expiring --notify-managers')
+    ->dailyAt('10:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/bonus-expiration-notifications.log'));

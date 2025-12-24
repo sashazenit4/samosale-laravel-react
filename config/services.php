@@ -49,4 +49,12 @@ return [
         'retry_times' => env('TOCHKA_RETRY_TIMES', 3),
         'retry_sleep' => env('TOCHKA_RETRY_SLEEP', 100),
     ],
+    'telegram' => [
+        'client_bot_token' => env('CLIENT_TG_BOT_TOKEN'),
+        'manager_bot_token' => env('MANAGER_TG_BOT_TOKEN'),
+        'manager_chat_id' => env('MANAGER_TELEGRAM_CHAT_ID'),
+        'manager_chat_ids' => array_filter(
+            explode(',', env('MANAGER_TELEGRAM_CHAT_IDS', ''))
+        ),
+    ],
 ];
