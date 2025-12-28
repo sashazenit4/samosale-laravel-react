@@ -80,4 +80,10 @@ class Rental extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    // Отношение к NPS опросам
+    public function npsSurveys()
+    {
+        return $this->hasMany(NpsSurvey::class);
+    }
 }

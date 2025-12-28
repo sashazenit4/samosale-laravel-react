@@ -29,3 +29,9 @@ Schedule::command('bonuses:check-expiring --notify-managers')
     ->dailyAt('13:03')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/bonus-expiration-notifications.log'));
+
+// Создание NPS опросов каждый день в 10:00
+Schedule::command('nps:create-surveys')
+    ->dailyAt('10:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/nps-surveys.log'));

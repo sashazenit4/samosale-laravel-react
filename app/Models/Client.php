@@ -285,6 +285,11 @@ class Client extends Model
         return $this->hasMany(Payment::class, 'client_id', 'user_id');
     }
 
+    public function npsSurveys()
+    {
+        return $this->hasMany(NpsSurvey::class, 'client_id', 'user_id');
+    }
+
     /**
      * Get available bonus balance (excluding expired bonuses)
      */
