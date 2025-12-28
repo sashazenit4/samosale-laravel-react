@@ -130,4 +130,65 @@ class TelegramNotificationService
 
         return $message;
     }
+
+    /**
+     * Форматирование сообщения клиенту о предстоящем платеже
+     */
+    public function formatClientPaymentNotification(array $data): string
+    {
+        $dueDate = \Carbon\Carbon::parse($data['due_date'])->format('d.m.Y');
+        $isOverdue = $data['is_overdue'] ?? false;
+        
+        $message = "<b>💳 Уведомление о платеже</b>\n\n";
+        
+        if ($isOverdue) {
+            $message .= "⚠️ <b>Внимание!</b> У вас просрочен платеж.\n\n";
+        } else {
+            $message .= "Напоминаем, что у вас предстоит платеж.\n\n";
+        }
+        
+        $message .= "<b>Сумма к оплате:</b> {$data['amount']} ₽\n";
+        $message .= "<b>Срок оплаты:</b> {$dueDate}\n";
+        
+        if (!empty($data['purpose'])) {
+            $message .= "<b>Назначение:</b> {$data['purpose']}\n";
+        }
+        
+        $message .= "\nПожалуйста, произведите оплату в указанный срок.";
+
+        return $message;
+    }
+
+    /**
+     * Форматирование сообщения менеджеру о предстоящем платеже
+     */
+    public function formatManagerPaymentNotification(array $data): string
+    {
+        $dueDate = \Carbon\Carbon::parse($data['due_date'])->format('d.m.Y');
+        $isOverdue = $data['is_overdue'] ?? false;
+        $status = $isOverdue ? '🔴 ПРОСРОЧЕН' : '🟡 Завтра';
+        
+        $message = "{$status} <b>Уведомление о платеже</b>\n\n";
+        $message .= "<b>Клиент:</b>\n";
+        $message .= "• Telegram ID: {$data['telegram_id']}\n";
+        $message .= "• Телефон: {$data['phone_number']}\n";
+        
+        if (!empty($data['full_name'])) {
+            $message .= "• ФИО: {$data['full_name']}\n";
+        }
+        
+        $message .= "\n<b>Платеж:</b>\n";
+        $message .= "• Сумма: {$data['amount']} ₽\n";
+        $message .= "• Срок оплаты: {$dueDate}\n";
+        
+        if (!empty($data['purpose'])) {
+            $message .= "• Назначение: {$data['purpose']}\n";
+        }
+        
+        if ($isOverdue) {
+            $message .= "\n⚠️ <b>Платеж просрочен!</b>";
+        }
+
+        return $message;
+    }
 }

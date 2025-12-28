@@ -35,3 +35,9 @@ Schedule::command('nps:create-surveys')
     ->dailyAt('10:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/nps-surveys.log'));
+
+// Проверка предстоящих платежей каждый день в 10:00
+Schedule::command('payments:check-upcoming')
+    ->dailyAt('10:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/payment-notifications.log'));
