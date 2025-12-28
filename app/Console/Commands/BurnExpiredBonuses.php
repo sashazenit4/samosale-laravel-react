@@ -57,7 +57,7 @@ class BurnExpiredBonuses extends Command
 
             foreach ($bonusesByClient as $clientId => $clientBonuses) {
                 $client = Client::find($clientId);
-                
+
                 if (!$client) {
                     $this->warn("Client with ID {$clientId} not found, skipping bonuses.");
                     continue;
@@ -66,8 +66,8 @@ class BurnExpiredBonuses extends Command
                 $clientBurnedAmount = 0;
 
                 foreach ($clientBonuses as $bonus) {
-                    $availableAmount = $bonus->getAvailableAmount();
-                    
+                    $availableAmount = $bonus->amount;
+
                     if ($availableAmount > 0) {
                         // Mark the remaining amount as used (burned)
                         $bonus->used_amount = $bonus->amount;
@@ -119,7 +119,7 @@ class BurnExpiredBonuses extends Command
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             $this->error("Error burning expired bonuses: " . $e->getMessage());
             Log::error('Failed to burn expired bonuses', [
                 'error' => $e->getMessage(),

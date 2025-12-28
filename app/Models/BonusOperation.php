@@ -81,7 +81,7 @@ class BonusOperation extends Model
     public function useAmount(float $amount): bool
     {
         $available = $this->getAvailableAmount();
-        
+
         if ($amount > $available) {
             return false;
         }
