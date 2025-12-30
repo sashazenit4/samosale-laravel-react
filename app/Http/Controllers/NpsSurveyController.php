@@ -125,6 +125,7 @@ class NpsSurveyController extends Controller
     {
         $surveys = NpsSurvey::with(['client', 'rental'])
             ->whereDate('sent_at', Carbon::today())
+            ->where('status', 'scheduled')
             ->get();
 
         return response()->json([
