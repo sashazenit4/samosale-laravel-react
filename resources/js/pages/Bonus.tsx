@@ -129,21 +129,50 @@ export default function BonusConfig() {
                                 </Button>
                             }
                         >
-                            <Space align="baseline">
-                                <Text style={{ width: 160 }}>Сумма:</Text>
-                                <InputNumber
-                                    min={0}
-                                    value={formData.welcome_bonus?.amount ?? 0}
-                                    onChange={(v) =>
-                                        updateField(
-                                            'welcome_bonus',
-                                            'amount',
-                                            v,
-                                        )
-                                    }
-                                    addonAfter="₽"
-                                    style={{ width: 200 }}
-                                />
+                            <Space
+                                direction="vertical"
+                                size="middle"
+                                style={{ width: '100%' }}
+                            >
+                                <Space align="baseline">
+                                    <Text style={{ width: 160 }}>Сумма:</Text>
+                                    <InputNumber
+                                        min={0}
+                                        value={
+                                            formData.welcome_bonus?.amount ?? 0
+                                        }
+                                        onChange={(v) =>
+                                            updateField(
+                                                'welcome_bonus',
+                                                'amount',
+                                                v,
+                                            )
+                                        }
+                                        addonAfter="₽"
+                                        style={{ width: 200 }}
+                                    />
+                                </Space>
+                                <Space align="baseline">
+                                    <Text style={{ width: 160 }}>
+                                        Срок действия:
+                                    </Text>
+                                    <InputNumber
+                                        min={1}
+                                        value={
+                                            formData.welcome_bonus
+                                                ?.expiration_days ?? 60
+                                        }
+                                        onChange={(v) =>
+                                            updateField(
+                                                'welcome_bonus',
+                                                'expiration_days',
+                                                v,
+                                            )
+                                        }
+                                        addonAfter="дней"
+                                        style={{ width: 200 }}
+                                    />
+                                </Space>
                             </Space>
                             <Text type="secondary">
                                 {
