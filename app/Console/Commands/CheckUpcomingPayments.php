@@ -65,10 +65,11 @@ class CheckUpcomingPayments extends Command
 
             $daysUntilDue = $todayStart->diffInDays($dueDateStart, false);
 
-            $isOverdue = $now->gt($dueDateEnd);      // просрочка только после конца дня срока
-            $isDueTomorrow = ($daysUntilDue === 1);  // предстоящий за 1 день
+            $isOverdue = $now->gt($dueDateEnd);       // просрочено только после конца дня
+            $isDueTomorrow = ($daysUntilDue === 1);   // срок завтра
+            $isDueToday = ($daysUntilDue === 0);      // срок сегодня
 
-            if (!$isOverdue && !$isDueTomorrow) {
+            if (!$isOverdue && !$isDueTomorrow && !$isDueToday) {
                 $skippedCount++;
                 continue;
             }
