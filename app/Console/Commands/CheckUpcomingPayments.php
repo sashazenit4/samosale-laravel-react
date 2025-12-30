@@ -57,13 +57,16 @@ class CheckUpcomingPayments extends Command
                 continue;
             }
 
-            $now = Carbon::now()->startOfDay();
-            $dueDateStart = Carbon::parse($dueDate)->startOfDay();
-            $daysUntilDue = $now->diffInDays($dueDateStart, false);
+            $now = Carbon::now();
+            $todayStart = $now->copy()->startOfDay();
 
-            // Проверяем, что до срока остался 1 день или срок просрочен
-            $isOverdue = $dueDateStart->lte($now);
-            $isDueTomorrow = 1 === $daysUntilDue;
+            $dueDateStart = Carbon::parse($dueDate)->startOfDay();
+            $dueDateEnd   = Carbon::parse($dueDate)->endOfDay();
+
+            $daysUntilDue = $todayStart->diffInDays($dueDateStart, false);
+
+            $isOverdue = $now->gt($dueDateEnd);      // просрочка только после конца дня срока
+            $isDueTomorrow = ($daysUntilDue === 1);  // предстоящий за 1 день
 
             if (!$isOverdue && !$isDueTomorrow) {
                 $skippedCount++;
