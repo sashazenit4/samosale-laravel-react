@@ -121,7 +121,7 @@ class CheckUpcomingPayments extends Command
                 $this->error("Failed to send notification for payment #{$payment->id}");
             }
         }
-        $managerSent = $this->telegramService->sendToManager($managerMessage);
+        $managerSent = $this->telegramService->sendToManagers($managerMessage);
 
         if (!$managerSent) {
             $this->error("Failed to send notification manager for all payments");
