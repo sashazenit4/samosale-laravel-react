@@ -73,8 +73,8 @@ class CheckUpcomingPayments extends Command
             ], true));
 
             $isOverdue = $now->gt($dueDateEnd);       // просрочено только после конца дня
-            $isDueTomorrow = ($daysUntilDue === 1);   // срок завтра
-            $isDueToday = ($daysUntilDue === 0);      // срок сегодня
+            $isDueTomorrow = ($daysUntilDue == 1);   // срок завтра
+            $isDueToday = ($daysUntilDue == 0);      // срок сегодня
 
             if (!$isOverdue && !$isDueTomorrow && !$isDueToday) {
                 $skippedCount++;
