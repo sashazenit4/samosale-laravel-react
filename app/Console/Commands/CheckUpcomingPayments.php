@@ -62,7 +62,7 @@ class CheckUpcomingPayments extends Command
             $daysUntilDue = $now->diffInDays($dueDateStart, false);
 
             // Проверяем, что до срока остался 1 день или срок просрочен
-            $isOverdue = $dueDateStart->lt($now);
+            $isOverdue = $dueDateStart->lte($now);
             $isDueTomorrow = 1 === $daysUntilDue;
 
             if (!$isOverdue && !$isDueTomorrow) {
