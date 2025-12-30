@@ -104,7 +104,7 @@ class CheckUpcomingPayments extends Command
             $clientSent = $this->telegramService->sendToClient($client->telegram_id, $clientMessage);
 
             // Отправляем уведомление менеджеру
-            $managerMessage .= $this->telegramService->formatManagerPaymentNotification($managerData) . PHP_EOL;
+            $managerMessage .= $this->telegramService->formatManagerPaymentNotification($managerData) . "\n";
 
             if ($clientSent) {
                 $notifiedCount++;
