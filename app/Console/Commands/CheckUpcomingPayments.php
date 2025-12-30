@@ -63,7 +63,7 @@ class CheckUpcomingPayments extends Command
 
             // Проверяем, что до срока остался 1 день или срок просрочен
             $isOverdue = $dueDateStart->lt($now);
-            $isDueTomorrow = $daysUntilDue === 1;
+            $isDueTomorrow = 1 === $daysUntilDue;
 
             if (!$isOverdue && !$isDueTomorrow) {
                 $skippedCount++;
@@ -137,32 +137,7 @@ class CheckUpcomingPayments extends Command
      */
     private function getPaymentDueDate(Payment $payment): ?string
     {
-        $monthMap = [
-            'january' => 1,
-            'february' => 2,
-            'march' => 3,
-            'april' => 4,
-            'may' => 5,
-            'june' => 6,
-            'july' => 7,
-            'august' => 8,
-            'september' => 9,
-            'october' => 10,
-            'november' => 11,
-            'december' => 12,
-        ];
-
-        if (!isset($monthMap[$payment->month]) || !$payment->year) {
-            return null;
-        }
-
-        $month = $monthMap[$payment->month];
-        $year = $payment->year;
-
-        // Получаем последний день месяца
-        $lastDay = Carbon::create($year, $month, 1)->endOfMonth();
-
-        return $lastDay->format('Y-m-d');
+        return $payment->generated_at->format('Y-m-d');
     }
 
     /**
