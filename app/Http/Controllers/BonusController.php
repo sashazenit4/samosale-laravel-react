@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\BonusSystemConfig;
 use App\Models\Client;
 use App\Models\Transaction;
-use App\Models\Payment;
 use App\Models\BonusOperation;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -139,11 +138,12 @@ class BonusController extends Controller
             DB::beginTransaction();
 
             // Получаем оплаченные транзакции, где не было списания бонусов
-            $paidTransactions = Transaction::where('status', 'paid')
+            $paidTransactions = Transaction::where('status', 'completed')
+                ->where('type', 'payment')
                 ->where('bonus_deduct_amount', 0)
                 ->whereHas('payment', function($query) {
                     // Только для определенных типов платежей (article)
-                    $query->whereIn('article', ['rental', 'service', 'product']);
+                    $query->whereIn('article', ['bike_rental', 'bike_repair', 'rental', 'service', 'product']);
                 })
                 ->with(['payment'])
                 ->get();
@@ -167,17 +167,19 @@ class BonusController extends Controller
                     continue;
                 }
                 if (!$client->is_loyalty_member) {
-                    throw new \Exception('Клиент не является участником программы лояльности');
+                    continue;
                 }
 
-                // Рассчитываем общую сумму потраченных денег клиентом
-                $totalSpent = Payment::where('client_id', $client->user_id)
-                    ->where('status', 'paid')
-                    ->sum('total_amount');
+                // Актуализируем total_spent / loyalty_level на основе transactions
+                $loyaltyService = app(\App\Services\ClientLoyaltyService::class);
+                $loyaltyService->recalculateForClient($client, false);
 
-                // Получаем бонусный процент в зависимости от уровня клиента
-                $bonusPercentage = BonusSystemConfig::getClientBonusPercentage($totalSpent);
-                $clientLevel = BonusSystemConfig::getClientLevel($totalSpent);
+                $totalSpent = (float) $client->total_spent;
+
+                // Берём процент начисления из поля loyalty_level клиента
+                $bonusPercentage = BonusSystemConfig::getBonusPercentageByLevel((int) $client->loyalty_level);
+                $clientLevel = BonusSystemConfig::getLevelByNumber((int) $client->loyalty_level)
+                    ?? BonusSystemConfig::getClientLevel($totalSpent);
 
                 // Рассчитываем сумму начисления
                 $accrualAmount = $transaction->amount * ($bonusPercentage / 100);

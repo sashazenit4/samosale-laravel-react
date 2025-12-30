@@ -173,6 +173,45 @@ class BonusSystemConfig extends Model
         return $level['bonus_percentage'] ?? self::getPaymentBonusPercentage();
     }
 
+
+    /**
+     * Получить уровень по номеру уровня (level)
+     */
+    public static function getLevelByNumber(int $levelNumber): ?array
+    {
+        foreach (self::getBonusLevels() as $level) {
+            if ((int)($level['level'] ?? 0) === $levelNumber) {
+                return $level;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Получить бонусный процент по номеру уровня (level)
+     */
+    public static function getBonusPercentageByLevel(int $levelNumber): float
+    {
+        $level = self::getLevelByNumber($levelNumber);
+
+        if ($level && isset($level['bonus_percentage'])) {
+            return (float) $level['bonus_percentage'];
+        }
+
+        return self::getPaymentBonusPercentage();
+    }
+
+    /**
+     * Получить имя уровня по номеру уровня (level)
+     */
+    public static function getLevelNameByNumber(int $levelNumber): ?string
+    {
+        $level = self::getLevelByNumber($levelNumber);
+        return $level['name'] ?? null;
+    }
+
+
     /**
      * Получить время жизни бонуса в днях
      */

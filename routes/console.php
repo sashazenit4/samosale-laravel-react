@@ -41,3 +41,9 @@ Schedule::command('payments:check-upcoming')
     ->dailyAt('10:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/payment-notifications.log'));
+
+// Проверка уровней лояльности
+Schedule::command('clients:recalculate-loyalty')
+    ->everyTenMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/client-loyalty-recalc.log'));
