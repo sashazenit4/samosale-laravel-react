@@ -47,10 +47,11 @@ class CheckUpcomingPayments extends Command
         $notifiedCount = 0;
         $skippedCount = 0;
 
+        $managerMessage = '';
         foreach ($payments as $payment) {
             // Вычисляем срок платежа (последний день месяца)
             $dueDate = $this->getPaymentDueDate($payment);
-            
+
             if (!$dueDate) {
                 $skippedCount++;
                 continue;
@@ -70,7 +71,7 @@ class CheckUpcomingPayments extends Command
             }
 
             $client = $payment->client;
-            
+
             // Пропускаем, если у клиента нет Telegram ID
             if (!$client || !$client->telegram_id) {
                 $skippedCount++;
@@ -79,7 +80,7 @@ class CheckUpcomingPayments extends Command
 
             // Получаем ФИО из custom fields
             $fullName = $this->getClientFullName($client);
-            
+
             // Формируем данные для сообщений
             $paymentData = [
                 'amount' => number_format($payment->total_amount - $payment->paid_amount, 2, '.', ' '),
@@ -103,14 +104,13 @@ class CheckUpcomingPayments extends Command
             $clientSent = $this->telegramService->sendToClient($client->telegram_id, $clientMessage);
 
             // Отправляем уведомление менеджеру
-            $managerMessage = $this->telegramService->formatManagerPaymentNotification($managerData);
-            $managerSent = $this->telegramService->sendToManager($managerMessage);
+            $managerMessage .= $this->telegramService->formatManagerPaymentNotification($managerData) . PHP_EOL;
 
-            if ($clientSent || $managerSent) {
+            if ($clientSent) {
                 $notifiedCount++;
                 $status = $isOverdue ? 'просрочен' : 'завтра';
                 $this->line("Notification sent for payment #{$payment->id} (due {$status})");
-                
+
                 Log::info('Payment notification sent', [
                     'payment_id' => $payment->id,
                     'client_id' => $client->user_id,
@@ -120,6 +120,11 @@ class CheckUpcomingPayments extends Command
             } else {
                 $this->error("Failed to send notification for payment #{$payment->id}");
             }
+        }
+        $managerSent = $this->telegramService->sendToManager($managerMessage);
+
+        if (!$managerSent) {
+            $this->error("Failed to send notification manager for all payments");
         }
 
         $this->info("Payment check completed. Notified: {$notifiedCount}, Skipped: {$skippedCount}");
@@ -174,7 +179,7 @@ class CheckUpcomingPayments extends Command
         $middleName = $client->getCustomField('middle_name');
 
         $parts = array_filter([$lastName, $firstName, $middleName]);
-        
+
         return !empty($parts) ? implode(' ', $parts) : ($client->name ?? 'Не указано');
     }
 }
