@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\NpsSurvey;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,7 +15,7 @@ class NpsSurveyController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = $request->get('per_page', 15);
-        
+
         $query = NpsSurvey::with(['client', 'rental']);
 
         // Фильтрация по статусу
@@ -117,6 +118,18 @@ class NpsSurveyController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'NPS опрос удалён успешно'
+        ]);
+    }
+
+    public function getTodaySurveys(Request $request): JsonResponse
+    {
+        $surveys = NpsSurvey::with(['client', 'rental'])
+            ->whereDate('sent_at', Carbon::today())
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $surveys,
         ]);
     }
 }
