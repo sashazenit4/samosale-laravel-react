@@ -64,6 +64,13 @@ class CheckUpcomingPayments extends Command
             $dueDateEnd   = Carbon::parse($dueDate)->endOfDay();
 
             $daysUntilDue = $todayStart->diffInDays($dueDateStart, false);
+            $this->info(var_export([
+                'now' => $now->toDateTimeString(),
+                'todayStart' => $todayStart->toDateTimeString(),
+                'dueDateStart' => $dueDateStart->toDateTimeString(),
+                'dueDateEnd' => $dueDateEnd->toDateTimeString(),
+                'daysUntilDue' => $daysUntilDue,
+            ], true));
 
             $isOverdue = $now->gt($dueDateEnd);       // просрочено только после конца дня
             $isDueTomorrow = ($daysUntilDue === 1);   // срок завтра
