@@ -48,6 +48,8 @@ class Client extends Model
         'bonus_balance', // бонусные баллы
         'has_welcome_bonus',
         'is_loyalty_member',
+        'loyalty_level',
+        'total_spent',
     ];
 
     /**
@@ -60,6 +62,11 @@ class Client extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'balance' => 'decimal:2',
+        'bonus_balance' => 'decimal:2',
+        'total_spent' => 'decimal:2',
+        'is_loyalty_member' => 'boolean',
+        'has_welcome_bonus' => 'boolean',
+        'loyalty_level' => 'integer',
     ];
 
     /**
@@ -73,6 +80,12 @@ class Client extends Model
             'registration_date' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
+            'balance' => 'decimal:2',
+            'bonus_balance' => 'decimal:2',
+            'total_spent' => 'decimal:2',
+            'is_loyalty_member' => 'boolean',
+            'has_welcome_bonus' => 'boolean',
+            'loyalty_level' => 'integer',
         ];
     }
 
@@ -283,6 +296,11 @@ class Client extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class, 'client_id', 'user_id');
+    }
+
+    public function npsSurveys()
+    {
+        return $this->hasMany(NpsSurvey::class, 'client_id', 'user_id');
     }
 
     /**

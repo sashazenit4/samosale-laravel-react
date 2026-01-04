@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import { SaveOutlined } from '@ant-design/icons'; // ← ВОТ ЭТО БЫЛОК!
+import { SaveOutlined } from '@ant-design/icons';
 import { Inertia } from '@inertiajs/inertia';
 import { Head, usePage } from '@inertiajs/react';
 import {
@@ -129,21 +129,50 @@ export default function BonusConfig() {
                                 </Button>
                             }
                         >
-                            <Space align="baseline">
-                                <Text style={{ width: 160 }}>Сумма:</Text>
-                                <InputNumber
-                                    min={0}
-                                    value={formData.welcome_bonus?.amount ?? 0}
-                                    onChange={(v) =>
-                                        updateField(
-                                            'welcome_bonus',
-                                            'amount',
-                                            v,
-                                        )
-                                    }
-                                    addonAfter="₽"
-                                    style={{ width: 200 }}
-                                />
+                            <Space
+                                direction="vertical"
+                                size="middle"
+                                style={{ width: '100%' }}
+                            >
+                                <Space align="baseline">
+                                    <Text style={{ width: 160 }}>Сумма:</Text>
+                                    <InputNumber
+                                        min={0}
+                                        value={
+                                            formData.welcome_bonus?.amount ?? 0
+                                        }
+                                        onChange={(v) =>
+                                            updateField(
+                                                'welcome_bonus',
+                                                'amount',
+                                                v,
+                                            )
+                                        }
+                                        addonAfter="₽"
+                                        style={{ width: 200 }}
+                                    />
+                                </Space>
+                                <Space align="baseline">
+                                    <Text style={{ width: 160 }}>
+                                        Срок действия:
+                                    </Text>
+                                    <InputNumber
+                                        min={1}
+                                        value={
+                                            formData.welcome_bonus
+                                                ?.expiration_days ?? 60
+                                        }
+                                        onChange={(v) =>
+                                            updateField(
+                                                'welcome_bonus',
+                                                'expiration_days',
+                                                v,
+                                            )
+                                        }
+                                        addonAfter="дней"
+                                        style={{ width: 200 }}
+                                    />
+                                </Space>
                             </Space>
                             <Text type="secondary">
                                 {
@@ -352,6 +381,105 @@ export default function BonusConfig() {
                                 {
                                     initialConfigs.find(
                                         (c) => c.key === 'bonus_levels',
+                                    )?.description
+                                }
+                            </Text>
+                        </Card>
+
+                        {/* NEW: Bonus Lifetime Days */}
+                        <Card
+                            title="Время жизни бонуса"
+                            extra={
+                                <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<SaveOutlined />}
+                                    loading={
+                                        savingKey === 'bonus_lifetime_days'
+                                    }
+                                    onClick={() =>
+                                        saveSection('bonus_lifetime_days')
+                                    }
+                                >
+                                    Сохранить
+                                </Button>
+                            }
+                        >
+                            <Space align="baseline">
+                                <Text style={{ width: 160 }}>
+                                    Срок действия:
+                                </Text>
+                                <InputNumber
+                                    min={1}
+                                    value={
+                                        formData.bonus_lifetime_days?.days ?? 30
+                                    }
+                                    onChange={(v) =>
+                                        updateField(
+                                            'bonus_lifetime_days',
+                                            'days',
+                                            v,
+                                        )
+                                    }
+                                    addonAfter="дней"
+                                    style={{ width: 200 }}
+                                />
+                            </Space>
+                            <Text type="secondary">
+                                {
+                                    initialConfigs.find(
+                                        (c) => c.key === 'bonus_lifetime_days',
+                                    )?.description
+                                }
+                            </Text>
+                        </Card>
+
+                        {/* NEW: Referral Bonus Condition */}
+                        <Card
+                            title="Условие для получения реферального бонуса"
+                            extra={
+                                <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<SaveOutlined />}
+                                    loading={
+                                        savingKey === 'referral_bonus_condition'
+                                    }
+                                    onClick={() =>
+                                        saveSection('referral_bonus_condition')
+                                    }
+                                >
+                                    Сохранить
+                                </Button>
+                            }
+                        >
+                            <Space align="baseline">
+                                <Text style={{ width: 160 }}>
+                                    Минимальная сумма трат приглашенного:
+                                </Text>
+                                <InputNumber
+                                    min={0}
+                                    value={
+                                        formData.referral_bonus_condition
+                                            ?.referee_min_spent ?? 0
+                                    }
+                                    onChange={(v) =>
+                                        updateField(
+                                            'referral_bonus_condition',
+                                            'referee_min_spent',
+                                            v,
+                                        )
+                                    }
+                                    addonAfter="₽"
+                                    style={{ width: 200 }}
+                                />
+                            </Space>
+                            <Text type="secondary">
+                                {
+                                    initialConfigs.find(
+                                        (c) =>
+                                            c.key ===
+                                            'referral_bonus_condition',
                                     )?.description
                                 }
                             </Text>
