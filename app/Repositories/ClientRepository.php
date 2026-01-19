@@ -424,7 +424,7 @@ class ClientRepository
 
     private function accrueRegistrationBonuses(Client $client): void
     {
-        if (!$client->has_welcome_bonus || $client->is_loyalty_member) {
+        if (!$client->has_welcome_bonus || !$client->is_loyalty_member) {
             return;
         }
 
