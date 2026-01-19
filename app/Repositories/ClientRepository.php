@@ -60,6 +60,7 @@ class ClientRepository
     public function create(array $data): Client
     {
         return DB::transaction(function () use ($data) {
+            $data['bonus_balance'] = 0;
             // Генерируем реферальный код если не предоставлен
             if (!isset($data['referral_code'])) {
                 $data['referral_code'] = Client::generateReferralCode();
