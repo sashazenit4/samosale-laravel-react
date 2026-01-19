@@ -64,7 +64,7 @@ export const clientsColumns = (
                 (item) => item.field_name === 'birth_date',
             )?.field_value;
             if (!date) return '—';
-            return dayjs.utc(date).format('DD.MM.YYYY');
+            return dayjs(date).format('DD.MM.YYYY');
         },
     },
     { title: 'Телефон', dataIndex: 'phone_number', key: 'phone_number' },
@@ -118,7 +118,7 @@ export const clientsColumns = (
                 (item) => item.field_name === 'passport_issue_date',
             )?.field_value;
             if (!date) return '—';
-            return dayjs.utc(date).format('DD.MM.YYYY');
+            return dayjs(date).format('DD.MM.YYYY');
         },
     },
     {
@@ -152,7 +152,7 @@ export const clientsColumns = (
         key: 'registration_date',
         render: (date: any) => {
             if (!date) return '—';
-            return dayjs.utc(date).format('DD.MM.YYYY');
+            return dayjs(date).format('DD.MM.YYYY');
         },
     },
     {
@@ -194,7 +194,7 @@ export const clientsColumns = (
                 (item) => item.field_name === 'issue_date',
             )?.field_value;
             if (!date) return '—';
-            return dayjs.utc(date).format('DD.MM.YYYY');
+            return dayjs(date).format('DD.MM.YYYY');
         },
     },
     {
@@ -206,7 +206,7 @@ export const clientsColumns = (
                 (item) => item.field_name === 'service_start_date',
             )?.field_value;
             if (!date) return '—';
-            return dayjs.utc(date).format('DD.MM.YYYY');
+            return dayjs(date).format('DD.MM.YYYY');
         },
     },
     {
@@ -218,7 +218,7 @@ export const clientsColumns = (
                 (item) => item.field_name === 'service_end_date',
             )?.field_value;
             if (!date) return '—';
-            return dayjs.utc(date).format('DD.MM.YYYY');
+            return dayjs(date).format('DD.MM.YYYY');
         },
     },
     {
@@ -846,21 +846,21 @@ export const rentsColumns = (
                 dataIndex: 'start_date',
                 key: 'start',
                 render: (date: string | null) =>
-                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+                    date ? dayjs(date).format('DD.MM.YYYY') : '-',
             },
             {
                 title: 'Плановое завершение',
                 dataIndex: 'planned_end_date',
                 key: 'end',
                 render: (date: string | null) =>
-                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+                    date ? dayjs(date).format('DD.MM.YYYY') : '-',
             },
             {
                 title: 'Фактическое завершение',
                 dataIndex: 'actual_end_date',
                 key: 'end',
                 render: (date: string | null) =>
-                    date ? dayjs.utc(date).format('DD.MM.YYYY') : '-',
+                    date ? dayjs(date).format('DD.MM.YYYY') : '-',
             },
         ],
     },
