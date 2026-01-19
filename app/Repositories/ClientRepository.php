@@ -429,7 +429,7 @@ class ClientRepository
         }
 
         $referralBonusConfig = BonusSystemConfig::getReferralBonus();
-        $welcomeBonus = BonusSystemConfig::getWelcomeBonus();
+        $welcomeBonus = BonusSystemConfig::getWelcomeBonus()['amount'];
 
         if ($client->referred_by) {
             // Клиент пришел по реферальной ссылке
