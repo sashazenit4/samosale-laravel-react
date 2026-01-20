@@ -15,7 +15,7 @@ class TelegramPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => 'sometimes|in:paid,partially_paid,unpaid',
+            'status' => 'sometimes|array',
             'year' => 'sometimes|integer|min:2020|max:2030',
             'month' => 'sometimes|in:january,february,march,april,may,june,july,august,september,october,november,december',
             'payment_type' => 'sometimes|in:cash,cashless,mixed,corporate',

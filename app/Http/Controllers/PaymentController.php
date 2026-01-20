@@ -140,10 +140,21 @@ class PaymentController extends Controller
         $query = Payment::with(['client', 'rental'])
             ->where('client_id', $client->user_id);
 
-        // Фильтрация по статусу
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
+            if ($request->has('status')) {
+                $statusParam = $request->input('status');
+                
+                if (is_array($statusParam)) {
+                    $query->whereIn('status', $statusParam);
+                }
+                elseif (strpos($statusParam, ',') !== false) {
+                    $statuses = explode(',', $statusParam);
+                    $statuses = array_filter(array_map('trim', $statuses));
+                    $query->whereIn('status', $statuses);
+                }
+                else {
+                    $query->where('status', $statusParam);
+                }
+            }
 
         // Фильтрация по году
         if ($request->has('year')) {
