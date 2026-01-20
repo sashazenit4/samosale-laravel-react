@@ -86,4 +86,24 @@ class Rental extends Model
     {
         return $this->hasMany(NpsSurvey::class);
     }
+
+    /**
+     * @return bool
+     */
+    public function updatePaymentStatus()
+    {
+        $totalPaid = $this->payments()->whereIn('status', ['paid', 'partially_paid'])->sum('paid_amount');
+
+        $this->paid_amount = $totalPaid;
+
+        if ($totalPaid >= $this->total_cost) {
+            $this->paid_status = 'paid';
+        } elseif ($totalPaid > 0) {
+            $this->paid_status = 'partially_paid';
+        } else {
+            $this->paid_status = 'unpaid';
+        }
+
+        return $this->save();
+    }
 }

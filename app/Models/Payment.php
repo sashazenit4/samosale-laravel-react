@@ -55,6 +55,9 @@ class Payment extends Model
         parent::boot();
 
         static::saving(function ($payment) {
+            $originalStatus = $payment->getOriginal('status');
+            $originalPaidAmount = $payment->getOriginal('paid_amount');
+
             // Обновляем статус на основе оплаченной суммы
             if ($payment->paid_amount >= $payment->total_amount) {
                 $payment->status = 'paid';
@@ -68,6 +71,20 @@ class Payment extends Model
             // Если оплата полная и paid_at не установлен, устанавливаем текущее время
             if ($payment->status === 'paid' && !$payment->paid_at) {
                 $payment->paid_at = now();
+            }
+        });
+
+        static::saved(function ($payment) {
+            // Обновляем статус аренды, если статус платежа изменился
+            if ($payment->rental_id && ($payment->wasChanged('status') || $payment->wasChanged('paid_amount'))) {
+                $payment->rental->updatePaymentStatus();
+            }
+        });
+
+        static::deleted(function ($payment) {
+            // При удалении платежа также обновляем статус аренды
+            if ($payment->rental_id) {
+                $payment->rental->updatePaymentStatus();
             }
         });
     }
