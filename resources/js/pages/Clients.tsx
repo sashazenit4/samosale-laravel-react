@@ -140,6 +140,13 @@ export default function Dashboard() {
     };
 
     const onSubmit = (values: any) => {
+        const dates = [
+            'birth_date',
+            'passport_issue_date',
+            'service_start_date',
+            'service_end_date',
+            'issue_date',
+        ];
         if (editingClient) {
             const payload: any = {
                 phone_number: values.phone_number,
@@ -149,7 +156,9 @@ export default function Dashboard() {
                         if (values[key]) {
                             return {
                                 name: key,
-                                value: values[key],
+                                value: dates.includes(key)
+                                    ? values[key].format('YYYY-MM-DDTHH:mm:ss')
+                                    : values[key],
                             };
                         }
                     })
@@ -187,7 +196,11 @@ export default function Dashboard() {
                         if (values[key]) {
                             return {
                                 name: key,
-                                value: values[key],
+                                value: dates.includes(values[key]?.field_name)
+                                    ? dayjs(values[key]).format(
+                                          '[YYYYescape] YYYY-MM-DDTHH:mm:ssZ[Z]',
+                                      )
+                                    : values[key],
                             };
                         }
                     })
