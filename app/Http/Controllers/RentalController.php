@@ -590,7 +590,7 @@ class RentalController extends Controller
         $currentDate = $startDate->copy();
 
         // Создаем платежи на основе breakdown
-        $paymentDate = now();
+        $paymentDate = $currentDate;
         foreach ($priceCalculation['breakdown'] as $period) {
             if ($period['amount'] > 0) {
                 $payment = Payment::create([
