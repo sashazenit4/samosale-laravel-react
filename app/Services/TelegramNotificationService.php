@@ -171,9 +171,13 @@ class TelegramNotificationService
     {
         $dueDate = \Carbon\Carbon::parse($data['due_date'])->format('d.m.Y');
         $isOverdue = $data['is_overdue'] ?? false;
+        $message = '';
+        if ($isOverdue) {
+            $message .= "⚠️ <b>Платеж просрочен!</b>\n";
+        }
         $status = $isOverdue ? '🔴 ПРОСРОЧЕН' : '🟡 Завтра';
 
-        $message = "{$status} <b>Уведомление о платеже</b>\n\n";
+        $message .= "{$status} <b>Уведомление о платеже</b>\n";
         $message .= "<b>Клиент:</b>\n";
         $message .= "• Telegram ID: {$data['telegram_id']}\n";
         $message .= "• Телефон: {$data['phone_number']}\n";
@@ -182,16 +186,12 @@ class TelegramNotificationService
             $message .= "• ФИО: {$data['full_name']}\n";
         }
 
-        $message .= "\n<b>Платеж:</b>\n";
+        $message .= "<b>Платеж:</b>\n";
         $message .= "• Сумма: {$data['amount']} ₽\n";
         $message .= "• Срок оплаты: {$dueDate}\n";
 
         if (!empty($data['purpose'])) {
-            $message .= "• Назначение: {$data['purpose']}\n";
-        }
-
-        if ($isOverdue) {
-            $message .= "\n⚠️ <b>Платеж просрочен!</b>";
+            $message .= "• Назначение: {$data['purpose']}\n\n";
         }
 
         return $message;

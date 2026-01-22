@@ -112,12 +112,12 @@ class CheckUpcomingPayments extends Command
 
             // Отправляем уведомление клиенту
             $clientMessage = $this->telegramService->formatClientPaymentNotification($paymentData);
-            $clientSent = $this->telegramService->sendToClient($client->telegram_id, $clientMessage);
+            // $clientSent = $this->telegramService->sendToClient($client->telegram_id, $clientMessage);
 
             // Отправляем уведомление менеджеру
             $managerMessage .= $this->telegramService->formatManagerPaymentNotification($managerData) . PHP_EOL . PHP_EOL;
 
-            if ($clientSent) {
+            if (true) {
                 $notifiedCount++;
                 $status = $isOverdue ? 'просрочен' : 'завтра';
                 $this->line("Notification sent for payment #{$payment->id} (due {$status})");
