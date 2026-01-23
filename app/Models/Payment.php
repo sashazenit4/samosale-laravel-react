@@ -76,9 +76,9 @@ class Payment extends Model
 
         static::saved(function ($payment) {
             // Обновляем статус аренды, если статус платежа изменился
-            if ($payment->rental_id && ($payment->wasChanged('status') || $payment->wasChanged('paid_amount'))) {
+//            if ($payment->rental_id && ($payment->wasChanged('status') || $payment->wasChanged('paid_amount'))) {
                 $payment->rental->updatePaymentStatus();
-            }
+//            }
         });
 
         static::deleted(function ($payment) {

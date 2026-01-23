@@ -497,6 +497,116 @@ class RentalController extends Controller
     }
 
     /**
+     * Cancel rental with bike change
+     */
+    public function cancelWithBikeChange(Request $request, Rental $rental): JsonResponse
+    {
+        if (!$rental->isActive()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rental is already completed'
+            ], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'new_bike_id' => 'required|exists:bikes,id',
+            'note' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $newBikeId = $request->new_bike_id;
+            $oldBike = $rental->bike;
+            $newBike = Bike::find($newBikeId);
+
+            // Проверяем, что новый байк свободен
+            if ($newBike->status !== 'free') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'New bike is not available for rental'
+                ], 422);
+            }
+
+            // Проверяем, что это не тот же байк
+            if ($oldBike->id === $newBikeId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'New bike must be different from current bike'
+                ], 422);
+            }
+
+            $actualEndDate = now();
+
+            // Завершаем изначальную аренду
+            $rental->update([
+                'status' => 'completed_early',
+                'actual_end_date' => $actualEndDate,
+                'completion_type' => 'bike_change',
+                'refund_amount' => 0,
+                'note' => $request->note ?? $rental->note
+            ]);
+
+            // Освобождаем изначальный байк
+            $oldBike->status = 'free';
+            $oldBike->save();
+
+            // Создаем копию аренды с новым байком
+            $newRental = Rental::create([
+                'client_id' => $rental->client_id,
+                'bike_id' => $newBikeId,
+                'tariff_id' => $rental->tariff_id,
+                'battery_capacity' => $rental->battery_capacity,
+                'batteries_count' => $rental->batteries_count,
+                'start_date' => now(),
+                'planned_end_date' => $rental->planned_end_date,
+                'total_cost' => $rental->total_cost,
+                'paid_amount' => $rental->paid_amount,
+                'paid_status' => $rental->paid_status,
+                'status' => 'active',
+                'note' => $rental->note
+            ]);
+
+            // Перепривязываем платежи к новой аренде
+            $rental->payments()->update(['rental_id' => $newRental->id]);
+
+            // Занимаем новый байк
+            $newBike->status = 'renting';
+            $newBike->save();
+
+            // Обновляем статус платежей для новой аренды
+            $newRental->updatePaymentStatus();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Rental cancelled with bike change successfully',
+                'data' => [
+                    'old_rental' => new RentalResource($rental->load(['client', 'bike', 'tariff'])),
+                    'new_rental' => new RentalResource($newRental->load(['client', 'bike', 'tariff', 'payments']))
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel rental with bike change',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Mark rental as paid
      */
     public function markAsPaid(Rental $rental): JsonResponse

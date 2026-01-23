@@ -66,14 +66,17 @@ class RentalPriceService
                 }
             }
         } else {
-            $fullMonths = floor($totalDays / 30);
-            $remainingDays = $totalDays % 30;
-
-            // Расчет месяцев
-            for ($i = 1; $i <= $fullMonths; $i++) {
+            // Рассчитываем breakdown только для дополнительного периода (remainingDays)
+            // Количество полных месяцев в дополнительном периоде
+            $additionalFullMonths = floor($remainingDays / 30);
+            $additionalRemainingDays = $remainingDays % 30;
+            
+            // Расчет дополнительных месяцев
+            for ($i = 1; $i <= $additionalFullMonths; $i++) {
+                $monthNumber = floor($previousDays / 30) + $i;
                 $description = $currentDate
-                    ? "Месяц {$i} (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addMonth()->format('d.m') . ")"
-                    : "Месяц {$i}";
+                    ? "Месяц {$monthNumber} (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addMonth()->format('d.m') . ")"
+                    : "Месяц {$monthNumber}";
 
                 $breakdown[] = [
                     'type' => 'month',
@@ -88,13 +91,15 @@ class RentalPriceService
             }
 
             // Добавляем оставшиеся дни как недельные периоды
-            if ($remainingDays > 0) {
-                $currentWeek = $this->getCurrentWeek($fullMonths * 30);
+            if ($additionalRemainingDays > 0) {
+                // Определяем, с какой недели начинать, учитывая позицию в месяце
+                $positionInMonth = ($previousDays % 30) + ($additionalFullMonths * 30);
+                $currentWeek = $this->getCurrentWeek($positionInMonth);
 
-                while ($remainingDays > 0 && $currentWeek <= 4) {
+                while ($additionalRemainingDays > 0 && $currentWeek <= 4) {
                     $weekPriceField = "price_week{$currentWeek}";
                     $weekPrice = $tariff->$weekPriceField;
-                    $periodDays = min(7, $remainingDays);
+                    $periodDays = min(7, $additionalRemainingDays);
 
                     $description = $currentDate
                         ? "услуги проката (" . $currentDate->format('d.m') . " - " . $currentDate->copy()->addDays($periodDays)->format('d.m') . ")"
@@ -108,7 +113,7 @@ class RentalPriceService
                         'week_number' => $currentWeek
                     ];
 
-                    $remainingDays -= $periodDays;
+                    $additionalRemainingDays -= $periodDays;
                     $currentWeek++;
 
                     if ($currentDate) {

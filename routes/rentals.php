@@ -13,6 +13,9 @@ Route::middleware(['auth:sanctum', 'api'])->group(function () {
     Route::post('/rentals/{rental}/complete-early', [RentalController::class, 'completeEarly'])
         ->name('rentals.complete-early');
 
+    Route::post('/rentals/{rental}/cancel-with-bike-change', [RentalController::class, 'cancelWithBikeChange'])
+        ->name('rentals.cancel-with-bike-change');
+
     Route::post('/rentals/{rental}/mark-paid', [RentalController::class, 'markAsPaid'])
         ->name('rentals.mark-paid');
 
