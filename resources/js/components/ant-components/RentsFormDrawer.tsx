@@ -416,6 +416,7 @@ const RentFormDrawer: React.FC<RentFormDrawerProps> = ({
                                 name="battery_capacity"
                                 label="Емкость АКБ (Вт·ч)"
                                 style={{ marginBottom: 0, flex: 1 }}
+                                required
                             >
                                 <Input
                                     style={{ width: '100%' }}
@@ -426,6 +427,7 @@ const RentFormDrawer: React.FC<RentFormDrawerProps> = ({
                                 name="batteries_count"
                                 label="Кол-во"
                                 style={{ marginBottom: 0, width: 100 }}
+                                required
                             >
                                 <InputNumber min={0} max={10} />
                             </Form.Item>
