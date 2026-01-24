@@ -727,6 +727,7 @@ export const rentsColumns = (
     openPaidModal: (record: any) => void,
     getDocument: (id: string) => void,
     getDocumentPDF: (id: string) => void,
+    openBikeModal: (record: any) => void,
 ) => [
     {
         title: 'ИД',
@@ -927,6 +928,17 @@ export const rentsColumns = (
                             onClick={() => openExtend(record)}
                         >
                             Продлить
+                        </Button>
+                    )}
+                </Col>
+                <Col span={18}>
+                    {record.status === 'active' && (
+                        <Button
+                            size="small"
+                            type="link"
+                            onClick={() => openBikeModal(record)}
+                        >
+                            Сменить велосипед
                         </Button>
                     )}
                 </Col>

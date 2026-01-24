@@ -210,6 +210,27 @@ Route::middleware('auth')->group(function () {
         return Redirect::back()->with('message', 'Аренда обновлена');
     });
 
+Route::post('/rentals/{rental}/cancel-with-bike-change', function (Request $request, $rentalId) {
+    $rental = app(Rental::class)->findOrFail($rentalId);
+    
+    $controller = app()->make(\App\Http\Controllers\RentalController::class);
+    $result = app()->call([$controller, 'cancelWithBikeChange'], [
+        'request' => $request,
+        'rental' => $rental
+    ]);
+    
+    if ($request->header('X-Inertia') && 
+        $result->headers->get('Content-Type') === 'application/json') {
+        $data = json_decode($result->getContent(), true);
+        
+        return redirect()->back()
+            ->with('success', $data['message'] ?? 'Success')
+            ->with('data', $data['data'] ?? []);
+    }
+    
+    return $result;
+})->name('rentals.cancel-with-bike-change');
+
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
 
 

@@ -51,7 +51,7 @@ interface PageProps extends InertiaPageProps {
     rents: any;
     filters: any;
     clients_options: { id: number; name: string }[];
-    bikes_options: { id: number; number: string }[];
+    bikes_options: any[];
     tariffs_options: {
         id: number;
         program: string;
@@ -95,6 +95,16 @@ export default function Rents() {
     }>({
         visible: false,
         record: null,
+    });
+
+    const [bikeModal, setBikeModal] = useState<{
+        visible: boolean;
+        record: Rent | null;
+        bikeId: string | null;
+    }>({
+        visible: false,
+        record: null,
+        bikeId: null,
     });
 
     const [extendModal, setExtendModal] = useState<{
@@ -181,6 +191,10 @@ export default function Rents() {
         setPaidModal({ visible: true, record });
     };
 
+    const openBikeModal = (record: Rent) => {
+        setBikeModal({ visible: true, record, bikeId: null });
+    };
+
     const handleDelete = () => {
         if (!deleteModal.record) return;
         console.log(deleteModal.record.id);
@@ -192,6 +206,22 @@ export default function Rents() {
             },
             onError: () => message.error('Ошибка удаления'),
         });
+    };
+
+    const handleChangeBike = () => {
+        if (!bikeModal.record) return;
+        Inertia.post(
+            `/rentals/${bikeModal?.record.id}/cancel-with-bike-change`,
+            { new_bike_id: bikeModal.bikeId },
+            {
+                preserveState: true,
+                onSuccess: () => {
+                    message.success('Велосипед изменен');
+                    setDeleteModal({ visible: false, record: null });
+                },
+                onError: () => message.error('Ошибка изменения'),
+            },
+        );
     };
 
     const handlePaid = () => {
@@ -373,6 +403,7 @@ export default function Rents() {
         openPaidModal,
         getDocument,
         getDocumentPDF,
+        openBikeModal,
     );
 
     return (
@@ -492,6 +523,45 @@ export default function Rents() {
                         cancelText="Отмена"
                     >
                         <p>Вы уверены? Это действие нельзя отменить.</p>
+                    </Modal>
+
+                    <Modal
+                        title="Смена велосипеда"
+                        open={bikeModal.visible}
+                        onCancel={() =>
+                            setBikeModal({
+                                visible: false,
+                                record: null,
+                                bikeId: null,
+                            })
+                        }
+                        onOk={handleChangeBike}
+                        okText="Сменить"
+                        cancelText="Отмена"
+                    >
+                        <Form.Item
+                            label="Велосипед"
+                            style={{ marginBottom: 0 }}
+                        >
+                            <Select
+                                value={bikeModal.bikeId}
+                                onChange={(value) =>
+                                    setBikeModal((prev) => ({
+                                        ...prev,
+                                        bikeId: value,
+                                    }))
+                                }
+                                style={{ width: '100%' }}
+                                options={bikes_options
+                                    .filter((item) => item.status === 'free')
+                                    .map((item) => {
+                                        return {
+                                            value: item.id,
+                                            label: `Номер вела: ${item?.bike_number}, номер рамы: ${item?.frame_number}`,
+                                        };
+                                    })}
+                            ></Select>
+                        </Form.Item>
                     </Modal>
 
                     <Modal
