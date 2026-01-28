@@ -33,6 +33,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Платежи', href: dashboard().url },
 ];
 
+const paymentStatusOptions = [
+    { value: '', label: 'Все статусы' },
+    { value: 'paid', label: 'Оплачено' },
+    { value: 'unpaid', label: 'Не оплачено' },
+    { value: 'partially_paid', label: 'Частично оплачено' },
+];
+
 // Статусы транзакций для фильтра
 const transactionStatusOptions = [
     { value: 'pending', label: 'Ожидание' },
@@ -44,18 +51,47 @@ const transactionStatusOptions = [
 ];
 
 export default function Payments() {
-    const { payments, filters, clients_options } = usePage().props as any;
+    const { payments, filters = {}, clients_options } = usePage().props as any;
     const [search, setSearch] = useState(filters?.search || '');
+    const [statusFilter, setStatusFilter] = useState(filters?.status || '');
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [editingPayment, setEditingPayment] = useState<any>(null);
     const [exportLoading, setExportLoading] = useState(false);
     const [exportModalVisible, setExportModalVisible] = useState(false);
-    const [exportFilters, setExportFilters] = useState({
-        status: '',
-        date_from: null,
-        date_to: null,
-    });
     const [exportForm] = Form.useForm();
+
+    const applyFilters = () => {
+        const params: any = {};
+
+        if (search) {
+            params.search = search;
+        }
+
+        if (statusFilter) {
+            params.status = statusFilter;
+        }
+
+        router.get('/payments', params, { preserveState: true, replace: true });
+    };
+
+    const handleSearch = () => {
+        applyFilters();
+    };
+
+    const handleStatusChange = (value: string) => {
+        setStatusFilter(value);
+        const params: any = {};
+
+        if (search) {
+            params.search = search;
+        }
+
+        if (value) {
+            params.status = value;
+        }
+
+        router.get('/payments', params, { preserveState: true, replace: true });
+    };
 
     // Функция экспорта платежей
     const handleExportPayments = () => {
@@ -91,6 +127,14 @@ export default function Payments() {
             searchInput.name = 'search';
             searchInput.value = search;
             form.appendChild(searchInput);
+        }
+
+        if (statusFilter) {
+            const statusInput = document.createElement('input');
+            statusInput.type = 'hidden';
+            statusInput.name = 'status';
+            statusInput.value = statusFilter;
+            form.appendChild(statusInput);
         }
 
         document.body.appendChild(form);
@@ -171,27 +215,6 @@ export default function Payments() {
         });
     };
 
-    // Альтернативный вариант: прямая загрузка через window.location
-    const handleExportTransactionsDirect = (filters: any) => {
-        const params = new URLSearchParams();
-
-        if (filters.status) {
-            params.append('status', filters.status);
-        }
-
-        if (filters.date_from) {
-            params.append('date_from', filters.date_from);
-        }
-
-        if (filters.date_to) {
-            params.append('date_to', filters.date_to);
-        }
-
-        const url = `/transactions/export/direct?${params.toString()}`;
-        window.open(url, '_blank');
-        message.success('Экспорт транзакций начался');
-    };
-
     const openDrawer = (payment?: any) => {
         setEditingPayment(payment || null);
         setDrawerVisible(true);
@@ -234,14 +257,6 @@ export default function Payments() {
         });
     };
 
-    const handleSearch = (value: string) => {
-        router.get(
-            '/payments',
-            { search: value },
-            { preserveState: true, replace: true },
-        );
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Платежи" />
@@ -274,12 +289,32 @@ export default function Payments() {
                                 prefix={<SearchOutlined />}
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                onPressEnter={(e) =>
-                                    handleSearch(e.currentTarget.value)
-                                }
+                                onPressEnter={handleSearch}
                                 allowClear
-                                style={{ width: 320 }}
+                                onClear={() => {
+                                    setSearch('');
+                                    applyFilters();
+                                }}
+                                style={{ width: 200 }}
                             />
+
+                            <Select
+                                placeholder="Статус платежа"
+                                value={statusFilter || undefined}
+                                onChange={handleStatusChange}
+                                style={{ width: 180 }}
+                                allowClear
+                                onClear={() => handleStatusChange('')}
+                            >
+                                {paymentStatusOptions.map((option) => (
+                                    <Option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </Option>
+                                ))}
+                            </Select>
 
                             {/* Кнопка экспорта платежей */}
                             <Button
@@ -310,19 +345,26 @@ export default function Payments() {
                         rowKey="id"
                         scroll={{ x: 1400 }}
                         pagination={{
-                            current: payments.meta?.current_page,
-                            pageSize: payments.meta?.per_page,
-                            total: payments.meta?.total,
+                            current: payments.meta?.current_page || 1,
+                            pageSize: payments.meta?.per_page || 15,
+                            total: payments.meta?.total || 0,
                         }}
                         onChange={(pagination) => {
-                            router.get(
-                                '/payments',
-                                {
-                                    page: pagination.current,
-                                    search,
-                                },
-                                { preserveState: true },
-                            );
+                            const params: any = {
+                                page: pagination.current,
+                            };
+
+                            if (search) {
+                                params.search = search;
+                            }
+
+                            if (statusFilter) {
+                                params.status = statusFilter;
+                            }
+
+                            router.get('/payments', params, {
+                                preserveState: true,
+                            });
                         }}
                     />
 
