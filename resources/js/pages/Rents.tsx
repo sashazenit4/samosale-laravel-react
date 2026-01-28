@@ -291,21 +291,25 @@ export default function Rents() {
     };
 
     function changeRent(payload: any) {
-        Inertia.put(`/rents/${drawer.record!.id}`, payload, {
-            preserveState: true,
-            preserveScroll: true,
-            onSuccess: (page) => {
-                console.log('УСПЕХ! Ответ сервера:', page);
-                closeDrawer();
+        Inertia.put(
+            `/rents/${drawer.record!.id}`,
+            { planned_end_date: payload.planned_end_date },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: (page) => {
+                    console.log('УСПЕХ! Ответ сервера:', page);
+                    closeDrawer();
+                },
+                onError: (errors) => {
+                    console.log('ОШИБКИ валидации:', errors);
+                    message.error('Проверьте поля');
+                },
+                onFinish: () => {
+                    console.log('Запрос завершён');
+                },
             },
-            onError: (errors) => {
-                console.log('ОШИБКИ валидации:', errors);
-                message.error('Проверьте поля');
-            },
-            onFinish: () => {
-                console.log('Запрос завершён');
-            },
-        });
+        );
     }
 
     function completeEarly(payload: any) {
