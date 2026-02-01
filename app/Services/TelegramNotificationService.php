@@ -196,4 +196,41 @@ class TelegramNotificationService
 
         return $message;
     }
+
+    public function formatRentalExpirationNotification(array $data): string
+    {
+        $daysWord = $data['days_word'];
+        $emoji = $data['is_today'] ? '⏰' : '🔔';
+        
+        $message = "{$emoji} <b>Напоминание об аренде #{$data['rental_id']}</b>\n\n";
+        $message .= "Начало аренды: {$data['start_date']}\n";
+        $message .= "Окончание аренды: {$data['end_date']}\n\n";
+        
+        if ($data['is_today']) {
+            $message .= "⚠️ <b>Аренда заканчивается СЕГОДНЯ!</b>\n";
+            $message .= "Пожалуйста, подготовьте велосипед к возврату.\n\n";
+        } else {
+            $message .= "📅 <b>Аренда заканчивается ЗАВТРА.</b>\n";
+            $message .= "Если вы хотите продлить аренду, пожалуйста, продлите ее в этом боте.\n\n";
+        }
+        
+        $message .= "С уважением, команда велопроката! 🚲";
+
+        return $message;
+    }
+
+    /**
+     * Форматировать уведомление об окончании аренды для менеджеров
+     */
+    public function formatManagerRentalNotification(array $data): string
+    {
+        $emoji = $data['days_word'] === 'сегодня' ? '⏰' : '⚠️';
+        $message = "{$emoji} <b>Аренда #{$data['rental_id']} заканчивается {$data['days_word']}</b>\n";
+        $message .= "└────────────────────\n";
+        $message .= "👤 <b>Клиент:</b> {$data['full_name']}\n";
+        $message .= "☎️ <b>Телефон:</b> {$data['phone_number']}\n";
+        $message .= "📅 <b>Окончание:</b> {$data['end_date']}";
+
+        return $message;
+    }
 }
