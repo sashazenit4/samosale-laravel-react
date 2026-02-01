@@ -266,7 +266,6 @@ Route::middleware('auth')->get('/rents', function (Request $request) {
     $meta  = $apiResponse->getData()->meta;
 
     $clients = \App\Models\Client::with('customFields')
-        ->withoutActiveRentals()
         ->select('user_id as user_id', 'name')
         ->get()
         ->map(fn($c) => [
@@ -287,7 +286,19 @@ Route::middleware('auth')->get('/rents', function (Request $request) {
             'data' => $rents,
             'meta' => $meta,
         ],
-        'filters' => $request->only('search'),
+        'filters' => $request->only([
+            'search', 
+            'client_id', 
+            'bike_id', 
+            'tariff_id', 
+            'status', 
+            'paid_status',
+            'min_cost',
+            'max_cost',
+            'start_date',
+            'end_date',
+            'has_note'
+        ]),
         'clients_options' => $clients,
         'bikes_options'   => $bikes,
         'tariffs_options' => $tariffs,
