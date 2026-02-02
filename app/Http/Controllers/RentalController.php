@@ -28,30 +28,87 @@ class RentalController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResponse
+    public function index(Request $request)
     {
-        try {
-            $rentals = Rental::with(['client', 'bike', 'tariff'])
-                ->latest()
-                ->paginate(20);
+        $query = Rental::with(['client', 'bike', 'tariff', 'payments'])
+            ->orderBy('created_at', 'desc');
 
-            return response()->json([
-                'success' => true,
-                'data' => RentalResource::collection($rentals),
-                'meta' => [
-                    'current_page' => $rentals->currentPage(),
-                    'last_page' => $rentals->lastPage(),
-                    'per_page' => $rentals->perPage(),
-                    'total' => $rentals->total(),
-                ]
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve rentals',
-                'error' => $e->getMessage()
-            ], 500);
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('client', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                })
+                ->orWhere('note', 'like', "%{$search}%");
+            });
         }
+
+        if ($request->has('client_id') && $request->client_id) {
+            $clientIds = explode(',', $request->client_id);
+            $query->whereIn('client_id', $clientIds);
+        }
+
+        if ($request->has('bike_id') && $request->bike_id) {
+            $bikeIds = explode(',', $request->bike_id);
+            $query->whereIn('bike_id', $bikeIds);
+        }
+
+        if ($request->has('tariff_id') && $request->tariff_id) {
+            $tariffIds = explode(',', $request->tariff_id);
+            $query->whereIn('tariff_id', $tariffIds);
+        }
+
+        if ($request->has('status') && $request->status) {
+            $statuses = explode(',', $request->status);
+            $query->whereIn('status', $statuses);
+        }
+
+        if ($request->has('paid_status') && $request->paid_status) {
+            $paidStatuses = explode(',', $request->paid_status);
+            $query->whereIn('paid_status', $paidStatuses);
+        }
+
+        if ($request->has('min_cost') && $request->min_cost) {
+            $query->where('total_cost', '>=', $request->min_cost);
+        }
+        
+        if ($request->has('max_cost') && $request->max_cost) {
+            $query->where('total_cost', '<=', $request->max_cost);
+        }
+
+        if ($request->has('start_date') && $request->start_date) {
+            $query->whereDate('start_date', '>=', $request->start_date);
+        }
+        
+        if ($request->has('end_date') && $request->end_date) {
+            $query->whereDate('start_date', '<=', $request->end_date);
+        }
+
+        if ($request->has('has_note')) {
+            if ($request->has_note === 'true') {
+                $query->whereNotNull('note')->where('note', '!=', '');
+            } elseif ($request->has_note === 'false') {
+                $query->where(function ($q) {
+                    $q->whereNull('note')->orWhere('note', '');
+                });
+            }
+        }
+
+        $perPage = $request->get('per_page', 10);
+        $rentals = $query->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $rentals->items(),
+            'meta' => [
+                'current_page' => $rentals->currentPage(),
+                'per_page' => $rentals->perPage(),
+                'total' => $rentals->total(),
+                'last_page' => $rentals->lastPage(),
+            ],
+        ]);
     }
 
     /**

@@ -47,3 +47,8 @@ Schedule::command('clients:recalculate-loyalty')
     ->everyTenMinutes()
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/client-loyalty-recalc.log'));
+
+Schedule::command('rentals:remind-expiring')
+    ->dailyAt('11:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/rental-reminders.log'));

@@ -2,23 +2,38 @@ import RentFormDrawer from '@/components/ant-components/RentsFormDrawer';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+    DownloadOutlined,
+    FilterOutlined,
+    PlusOutlined,
+    SearchOutlined,
+} from '@ant-design/icons';
 import { Inertia, PageProps as InertiaPageProps } from '@inertiajs/inertia';
 import { Head, usePage } from '@inertiajs/react';
 import {
     Button,
+    Card,
+    Checkbox,
+    Col,
     ConfigProvider,
+    DatePicker,
     Form,
+    Input,
+    InputNumber,
     message,
     Modal,
+    Row,
     Select,
     Space,
     Table,
+    Tag,
 } from 'antd';
 import ruRU from 'antd/locale/ru_RU';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { rentsColumns } from './columnsConfig';
+
+const { RangePicker } = DatePicker;
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Аренда', href: dashboard().url },
@@ -45,12 +60,15 @@ interface Rent {
     is_completed: boolean;
     note: string | null;
     planned_end_date: any;
+    status: string;
+    paid_status: string;
+    total_cost: number;
 }
 
 interface PageProps extends InertiaPageProps {
     rents: any;
     filters: any;
-    clients_options: { id: number; name: string }[];
+    clients_options: { id: number; name: string; full_name: string }[];
     bikes_options: any[];
     tariffs_options: {
         id: number;
@@ -59,6 +77,19 @@ interface PageProps extends InertiaPageProps {
         price_week2: number;
         price_month: number;
     }[];
+}
+
+interface FilterValues {
+    search: string;
+    client_id: number[];
+    bike_id: number[];
+    tariff_id: number[];
+    status: string[];
+    paid_status: string[];
+    min_cost: number | null;
+    max_cost: number | null;
+    date_range: [dayjs.Dayjs, dayjs.Dayjs] | null;
+    has_note: boolean | null;
 }
 
 export default function Rents() {
@@ -74,6 +105,27 @@ export default function Rents() {
     );
 
     const [search, setSearch] = useState<string>(filters.search || '');
+    const [showFilters, setShowFilters] = useState<boolean>(false);
+    const [filterValues, setFilterValues] = useState<FilterValues>({
+        search: filters.search || '',
+        client_id: filters.client_id
+            ? filters.client_id.split(',').map(Number)
+            : [],
+        bike_id: filters.bike_id ? filters.bike_id.split(',').map(Number) : [],
+        tariff_id: filters.tariff_id
+            ? filters.tariff_id.split(',').map(Number)
+            : [],
+        status: filters.status ? filters.status.split(',') : [],
+        paid_status: filters.paid_status ? filters.paid_status.split(',') : [],
+        min_cost: filters.min_cost ? Number(filters.min_cost) : null,
+        max_cost: filters.max_cost ? Number(filters.max_cost) : null,
+        date_range:
+            filters.start_date && filters.end_date
+                ? [dayjs(filters.start_date), dayjs(filters.end_date)]
+                : null,
+        has_note: filters.has_note ? filters.has_note === 'true' : null,
+    });
+
     const [drawer, setDrawer] = useState<{
         visible: boolean;
         record: Rent | null;
@@ -117,31 +169,111 @@ export default function Rents() {
         weeks: 1,
     });
 
-    const [exportLoading, setExportLoading] = useState<boolean>(false); // Состояние для загрузки экспорта
+    const [exportLoading, setExportLoading] = useState<boolean>(false);
+    const [form] = Form.useForm();
 
     useEffect(() => {
         if (filters.search !== search) setSearch(filters.search || '');
-    }, [filters.search]);
+        // Восстанавливаем значения фильтров из URL
+        const newFilterValues: FilterValues = {
+            search: filters.search || '',
+            client_id: filters.client_id
+                ? filters.client_id.split(',').map(Number)
+                : [],
+            bike_id: filters.bike_id
+                ? filters.bike_id.split(',').map(Number)
+                : [],
+            tariff_id: filters.tariff_id
+                ? filters.tariff_id.split(',').map(Number)
+                : [],
+            status: filters.status ? filters.status.split(',') : [],
+            paid_status: filters.paid_status
+                ? filters.paid_status.split(',')
+                : [],
+            min_cost: filters.min_cost ? Number(filters.min_cost) : null,
+            max_cost: filters.max_cost ? Number(filters.max_cost) : null,
+            date_range:
+                filters.start_date && filters.end_date
+                    ? [dayjs(filters.start_date), dayjs(filters.end_date)]
+                    : null,
+            has_note: filters.has_note ? filters.has_note === 'true' : null,
+        };
+        setFilterValues(newFilterValues);
+        form.setFieldsValue(newFilterValues);
+    }, [filters]);
 
     const go = (params: any = {}) => {
+        const filteredParams = Object.fromEntries(
+            Object.entries(params).filter(
+                ([_, v]) => v !== undefined && v !== null && v !== '',
+            ),
+        );
         Inertia.get(
             '/rents',
-            { ...params, search },
+            { ...filteredParams },
             { preserveState: true, replace: true },
         );
     };
 
-    const handleSearch = () => go({ search });
+    const handleSearch = () => {
+        go({ search: filterValues.search });
+    };
+
+    const handleApplyFilters = (values: FilterValues) => {
+        const params: any = {};
+
+        if (values.search) params.search = values.search;
+        if (values.client_id && values.client_id.length > 0)
+            params.client_id = values.client_id.join(',');
+        if (values.bike_id && values.bike_id.length > 0)
+            params.bike_id = values.bike_id.join(',');
+        if (values.tariff_id && values.tariff_id.length > 0)
+            params.tariff_id = values.tariff_id.join(',');
+        if (values.status && values.status.length > 0)
+            params.status = values.status.join(',');
+        if (values.paid_status && values.paid_status.length > 0)
+            params.paid_status = values.paid_status.join(',');
+        if (values.min_cost !== null) params.min_cost = values.min_cost;
+        if (values.max_cost !== null) params.max_cost = values.max_cost;
+        if (values.date_range && values.date_range[0] && values.date_range[1]) {
+            params.start_date = values.date_range[0].format('YYYY-MM-DD');
+            params.end_date = values.date_range[1].format('YYYY-MM-DD');
+        }
+        if (values.has_note !== null)
+            params.has_note = values.has_note.toString();
+
+        go(params);
+        setShowFilters(false);
+    };
+
+    const handleResetFilters = () => {
+        form.resetFields();
+        const resetValues = {
+            search: '',
+            client_id: [],
+            bike_id: [],
+            tariff_id: [],
+            status: [],
+            paid_status: [],
+            min_cost: null,
+            max_cost: null,
+            date_range: null,
+            has_note: null,
+        };
+        setFilterValues(resetValues);
+        go({});
+        setShowFilters(false);
+    };
+
     const handleTableChange = (pagination: any) =>
         go({ page: pagination.current });
 
-    // Функция экспорта rentals
     const handleExport = () => {
         setExportLoading(true);
 
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '/export/rentals'; // URL для экспорта rentals
+        form.action = '/export/rentals';
         form.target = '_blank';
         form.style.display = 'none';
 
@@ -156,6 +288,26 @@ export default function Rents() {
             tokenInput.value = csrfToken;
             form.appendChild(tokenInput);
         }
+
+        Object.entries(filterValues).forEach(([key, value]) => {
+            if (
+                value !== null &&
+                value !== '' &&
+                !(Array.isArray(value) && value.length === 0)
+            ) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                if (Array.isArray(value)) {
+                    input.value = value.join(',');
+                } else if (typeof value === 'boolean') {
+                    input.value = value.toString();
+                } else {
+                    input.value = value;
+                }
+                form.appendChild(input);
+            }
+        });
 
         const formatInput = document.createElement('input');
         formatInput.type = 'hidden';
@@ -197,7 +349,6 @@ export default function Rents() {
 
     const handleDelete = () => {
         if (!deleteModal.record) return;
-        console.log(deleteModal.record.id);
         Inertia.delete(`/rents/${deleteModal.record.id}`, {
             preserveState: true,
             onSuccess: () => {
@@ -240,7 +391,6 @@ export default function Rents() {
         );
     };
 
-    // ВАЖНО: Используем Modal.confirm ИЗ ConfigProvider
     const openExtendModal = (record: Rent) => {
         setExtendModal({ visible: true, record, weeks: 1 });
     };
@@ -283,7 +433,6 @@ export default function Rents() {
                 onSuccess: () => {
                     message.success(isEdit ? 'Обновлено' : 'Создано');
                     closeDrawer();
-                    // Inertia.reload();
                 },
                 onError: () => message.error('Ошибка'),
             });
@@ -297,16 +446,12 @@ export default function Rents() {
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: (page) => {
-                    console.log('УСПЕХ! Ответ сервера:', page);
+                onSuccess: () => {
                     closeDrawer();
                 },
                 onError: (errors) => {
                     console.log('ОШИБКИ валидации:', errors);
                     message.error('Проверьте поля');
-                },
-                onFinish: () => {
-                    console.log('Запрос завершён');
                 },
             },
         );
@@ -316,16 +461,12 @@ export default function Rents() {
         Inertia.post(`/rents/${drawer.record!.id}/complete-early`, payload, {
             preserveState: true,
             preserveScroll: true,
-            onSuccess: (page) => {
-                console.log('УСПЕХ! Ответ сервера:', page);
+            onSuccess: () => {
                 closeDrawer();
             },
             onError: (errors) => {
                 console.log('ОШИБКИ валидации:', errors);
                 message.error('Проверьте поля');
-            },
-            onFinish: () => {
-                console.log('Запрос завершён');
             },
         });
     }
@@ -337,16 +478,12 @@ export default function Rents() {
             {
                 preserveState: true,
                 preserveScroll: true,
-                onSuccess: (page) => {
-                    console.log('УСПЕХ! Ответ сервера:', page);
+                onSuccess: () => {
                     closeDrawer();
                 },
                 onError: (errors) => {
                     console.log('ОШИБКИ валидации:', errors);
                     message.error('Проверьте поля');
-                },
-                onFinish: () => {
-                    console.log('Запрос завершён');
                 },
             },
         );
@@ -410,10 +547,22 @@ export default function Rents() {
         openBikeModal,
     );
 
+    const statusOptions = [
+        { label: 'Активна', value: 'active' },
+        { label: 'Завершена', value: 'completed' },
+        { label: 'Завершена заранее', value: 'completed_early' },
+        { label: 'Отменена', value: 'cancelled' },
+    ];
+
+    const paidStatusOptions = [
+        { label: 'Оплачено', value: 'paid' },
+        { label: 'Не оплачено', value: 'unpaid' },
+        { label: 'Частично оплачено', value: 'partially_paid' },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Аренда" />
-            {/* ВСЁ ВНУТРИ ConfigProvider */}
             <ConfigProvider
                 locale={ruRU}
                 theme={{
@@ -452,7 +601,29 @@ export default function Rents() {
                         </Button>
 
                         <Space>
-                            {/* Кнопка экспорта аренды */}
+                            <Button
+                                icon={<FilterOutlined />}
+                                onClick={() => setShowFilters(!showFilters)}
+                                type={showFilters ? 'primary' : 'default'}
+                            >
+                                Фильтры
+                            </Button>
+
+                            <Input
+                                placeholder="Поиск по клиенту, примечанию..."
+                                prefix={<SearchOutlined />}
+                                value={filterValues.search}
+                                onChange={(e) => {
+                                    setFilterValues((prev) => ({
+                                        ...prev,
+                                        search: e.target.value,
+                                    }));
+                                }}
+                                onPressEnter={handleSearch}
+                                allowClear
+                                style={{ width: 320 }}
+                            />
+
                             <Button
                                 type="primary"
                                 icon={<DownloadOutlined />}
@@ -460,21 +631,384 @@ export default function Rents() {
                                 onClick={handleExport}
                                 style={{ marginLeft: 8 }}
                             >
-                                Экспорт в Excel
+                                Экспорт
                             </Button>
-
-                            {/* <Input
-                                placeholder="Поиск по клиенту, примечанию..."
-                                prefix={<SearchOutlined />}
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                onPressEnter={handleSearch}
-                                allowClear
-                                style={{ width: 320 }}
-                            />
-                            <Button icon={<FilterIcon size={18} />} /> */}
                         </Space>
                     </Space>
+
+                    {showFilters && (
+                        <Card
+                            title="Фильтры"
+                            size="small"
+                            style={{ marginBottom: 16 }}
+                            extra={
+                                <Space>
+                                    <Button
+                                        size="small"
+                                        onClick={handleResetFilters}
+                                    >
+                                        Сбросить
+                                    </Button>
+                                    <Button
+                                        type="primary"
+                                        size="small"
+                                        onClick={() => form.submit()}
+                                    >
+                                        Применить
+                                    </Button>
+                                </Space>
+                            }
+                        >
+                            <Form
+                                form={form}
+                                layout="vertical"
+                                initialValues={filterValues}
+                                onFinish={handleApplyFilters}
+                            >
+                                <Row gutter={[16, 16]}>
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Клиенты"
+                                            name="client_id"
+                                        >
+                                            <Select
+                                                mode="multiple"
+                                                placeholder="Выберите клиентов"
+                                                options={clients_options.map(
+                                                    (client) => ({
+                                                        value: client.id,
+                                                        label: (
+                                                            client?.custom_fields ||
+                                                            []
+                                                        )?.length
+                                                            ? `${
+                                                                  client?.custom_fields.find(
+                                                                      (item) =>
+                                                                          item.field_name ===
+                                                                          'last_name',
+                                                                  )?.field_value
+                                                              } ${
+                                                                  client?.custom_fields.find(
+                                                                      (item) =>
+                                                                          item.field_name ===
+                                                                          'first_name',
+                                                                  )?.field_value
+                                                              }`
+                                                            : client?.name,
+                                                    }),
+                                                )}
+                                                allowClear
+                                            />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Велосипеды"
+                                            name="bike_id"
+                                        >
+                                            <Select
+                                                mode="multiple"
+                                                placeholder="Выберите велосипеды"
+                                                options={bikes_options.map(
+                                                    (bike) => ({
+                                                        value: bike.id,
+                                                        label: `№${bike.bike_number} (рама: ${bike.frame_number})`,
+                                                    }),
+                                                )}
+                                                allowClear
+                                            />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Тарифы"
+                                            name="tariff_id"
+                                        >
+                                            <Select
+                                                mode="multiple"
+                                                placeholder="Выберите тарифы"
+                                                options={tariffs_options.map(
+                                                    (tariff) => ({
+                                                        value: tariff.id,
+                                                        label: tariff.program,
+                                                    }),
+                                                )}
+                                                allowClear
+                                            />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Статус аренды"
+                                            name="status"
+                                        >
+                                            <Select
+                                                mode="multiple"
+                                                placeholder="Выберите статусы"
+                                                options={statusOptions}
+                                                allowClear
+                                            />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Статус оплаты"
+                                            name="paid_status"
+                                        >
+                                            <Select
+                                                mode="multiple"
+                                                placeholder="Выберите статусы оплаты"
+                                                options={paidStatusOptions}
+                                                allowClear
+                                            />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Дата аренды"
+                                            name="date_range"
+                                        >
+                                            <RangePicker
+                                                style={{ width: '100%' }}
+                                                format="DD.MM.YYYY"
+                                            />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Стоимость от"
+                                            name="min_cost"
+                                        >
+                                            <InputNumber
+                                                placeholder="Минимальная стоимость"
+                                                style={{ width: '100%' }}
+                                                min={0}
+                                                addonAfter="₽"
+                                            />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Стоимость до"
+                                            name="max_cost"
+                                        >
+                                            <InputNumber
+                                                placeholder="Максимальная стоимость"
+                                                style={{ width: '100%' }}
+                                                min={0}
+                                                addonAfter="₽"
+                                            />
+                                        </Form.Item>
+                                    </Col>
+
+                                    <Col span={8}>
+                                        <Form.Item
+                                            label="Примечание"
+                                            name="has_note"
+                                            valuePropName="checked"
+                                        >
+                                            <Checkbox.Group>
+                                                <Checkbox value={true}>
+                                                    Есть примечание
+                                                </Checkbox>
+                                                <Checkbox value={false}>
+                                                    Без примечания
+                                                </Checkbox>
+                                            </Checkbox.Group>
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                            </Form>
+                        </Card>
+                    )}
+
+                    {/* Отображение активных фильтров */}
+                    {Object.entries(filterValues).some(
+                        ([key, value]) =>
+                            key !== 'search' &&
+                            value !== null &&
+                            value !== '' &&
+                            !(Array.isArray(value) && value.length === 0),
+                    ) && (
+                        <div style={{ marginBottom: 16 }}>
+                            <Space wrap>
+                                <span>Активные фильтры:</span>
+                                {filterValues.client_id &&
+                                    filterValues.client_id.length > 0 && (
+                                        <Tag
+                                            closable
+                                            onClose={() => {
+                                                form.setFieldValue(
+                                                    'client_id',
+                                                    [],
+                                                );
+                                                handleApplyFilters({
+                                                    ...filterValues,
+                                                    client_id: [],
+                                                });
+                                            }}
+                                        >
+                                            Клиенты:{' '}
+                                            {filterValues.client_id.length}
+                                        </Tag>
+                                    )}
+                                {filterValues.bike_id &&
+                                    filterValues.bike_id.length > 0 && (
+                                        <Tag
+                                            closable
+                                            onClose={() => {
+                                                form.setFieldValue(
+                                                    'bike_id',
+                                                    [],
+                                                );
+                                                handleApplyFilters({
+                                                    ...filterValues,
+                                                    bike_id: [],
+                                                });
+                                            }}
+                                        >
+                                            Велосипеды:{' '}
+                                            {filterValues.bike_id.length}
+                                        </Tag>
+                                    )}
+                                {filterValues.status &&
+                                    filterValues.status.length > 0 && (
+                                        <Tag
+                                            closable
+                                            onClose={() => {
+                                                form.setFieldValue(
+                                                    'status',
+                                                    [],
+                                                );
+                                                handleApplyFilters({
+                                                    ...filterValues,
+                                                    status: [],
+                                                });
+                                            }}
+                                        >
+                                            Статусы:{' '}
+                                            {filterValues.status
+                                                .map(
+                                                    (s) =>
+                                                        statusOptions.find(
+                                                            (o) =>
+                                                                o.value === s,
+                                                        )?.label || s,
+                                                )
+                                                .join(', ')}
+                                        </Tag>
+                                    )}
+                                {filterValues.paid_status &&
+                                    filterValues.paid_status.length > 0 && (
+                                        <Tag
+                                            closable
+                                            onClose={() => {
+                                                form.setFieldValue(
+                                                    'paid_status',
+                                                    [],
+                                                );
+                                                handleApplyFilters({
+                                                    ...filterValues,
+                                                    paid_status: [],
+                                                });
+                                            }}
+                                        >
+                                            Оплата:{' '}
+                                            {filterValues.paid_status
+                                                .map(
+                                                    (s) =>
+                                                        paidStatusOptions.find(
+                                                            (o) =>
+                                                                o.value === s,
+                                                        )?.label || s,
+                                                )
+                                                .join(', ')}
+                                        </Tag>
+                                    )}
+                                {(filterValues.min_cost !== null ||
+                                    filterValues.max_cost !== null) && (
+                                    <Tag
+                                        closable
+                                        onClose={() => {
+                                            form.setFieldValue(
+                                                ['min_cost', 'max_cost'],
+                                                [null, null],
+                                            );
+                                            handleApplyFilters({
+                                                ...filterValues,
+                                                min_cost: null,
+                                                max_cost: null,
+                                            });
+                                        }}
+                                    >
+                                        Стоимость:
+                                        {filterValues.min_cost !== null
+                                            ? ` от ${filterValues.min_cost}₽`
+                                            : ''}
+                                        {filterValues.max_cost !== null
+                                            ? ` до ${filterValues.max_cost}₽`
+                                            : ''}
+                                    </Tag>
+                                )}
+                                {filterValues.date_range && (
+                                    <Tag
+                                        closable
+                                        onClose={() => {
+                                            form.setFieldValue(
+                                                'date_range',
+                                                null,
+                                            );
+                                            handleApplyFilters({
+                                                ...filterValues,
+                                                date_range: null,
+                                            });
+                                        }}
+                                    >
+                                        Дата:{' '}
+                                        {filterValues.date_range[0].format(
+                                            'DD.MM.YYYY',
+                                        )}{' '}
+                                        -{' '}
+                                        {filterValues.date_range[1].format(
+                                            'DD.MM.YYYY',
+                                        )}
+                                    </Tag>
+                                )}
+                                {filterValues.has_note !== null && (
+                                    <Tag
+                                        closable
+                                        onClose={() => {
+                                            form.setFieldValue(
+                                                'has_note',
+                                                null,
+                                            );
+                                            handleApplyFilters({
+                                                ...filterValues,
+                                                has_note: null,
+                                            });
+                                        }}
+                                    >
+                                        Примечание:{' '}
+                                        {filterValues.has_note ? 'Есть' : 'Нет'}
+                                    </Tag>
+                                )}
+                                <Button
+                                    type="link"
+                                    size="small"
+                                    onClick={handleResetFilters}
+                                >
+                                    Сбросить все
+                                </Button>
+                            </Space>
+                        </div>
+                    )}
 
                     <Table
                         columns={columns}
@@ -485,6 +1019,9 @@ export default function Rents() {
                             pageSize: rents?.meta?.per_page || 10,
                             total: rents?.meta?.total || 0,
                             showQuickJumper: true,
+                            showSizeChanger: true,
+                            showTotal: (total, range) =>
+                                `${range[0]}-${range[1]} из ${total} аренд`,
                         }}
                         onChange={handleTableChange}
                         scroll={{ x: 'max-content' }}
