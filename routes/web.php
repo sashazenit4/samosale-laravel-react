@@ -311,7 +311,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/payments', function (Request $request) {
         $search = $request->query('search');
-
+        $status = $request->query('status');
+    
         $payments = Payment::with(['client.customFields', 'rental'])
             ->when($search, function ($query) use ($search) {
                 $query->where('purpose', 'like', "%{$search}%")
@@ -324,10 +325,13 @@ Route::middleware('auth')->group(function () {
                             });
                       });
             })
+            ->when($status, function ($query) use ($status) {
+                $query->where('status', $status);
+            })
             ->latest()
             ->paginate(20)
             ->withQueryString();
-
+    
         $clients = \App\Models\Client::with('customFields')
             ->select('user_id as user_id', 'name')
             ->get()
@@ -340,10 +344,10 @@ Route::middleware('auth')->group(function () {
                     'field_type'  => $cf->field_type,
                 ])->toArray(),
             ]);
-
+    
         return Inertia::render('Payments', [
             'payments' => PaymentResource::collection($payments),
-            'filters'  => $request->only('search'),
+            'filters'  => $request->only('search', 'status'), // Добавляем статус в фильтры
             'clients_options' => $clients,
         ]);
     })->name('payments.index');
