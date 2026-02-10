@@ -316,7 +316,6 @@ Route::middleware('auth')->group(function () {
         $payments = Payment::with(['client.customFields', 'rental'])
             ->when($search, function ($query) use ($search) {
                 $query->where('purpose', 'like', "%{$search}%")
-                      ->orWhere('article_ru', 'like', "%{$search}%")
                       ->orWhereHas('client', function ($q) use ($search) {
                           $q->where('name', 'like', "%{$search}%")
                             ->orWhere('phone_number', 'like', "%{$search}%")
