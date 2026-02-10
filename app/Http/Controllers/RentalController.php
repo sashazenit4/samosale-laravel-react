@@ -38,8 +38,10 @@ class RentalController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->whereHas('client', function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('phone', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                      ->orWhere('phone_number', 'like', "%{$search}%")
+                      ->orWhereHas('customFields', function ($q2) use ($search) {
+                        $q2->where('field_value', 'like', "%{$search}%");
+                    });
                 })
                 ->orWhere('note', 'like', "%{$search}%");
             });
@@ -101,7 +103,7 @@ class RentalController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $rentals->items(),
+            'data' => RentalResource::collection($rentals),
             'meta' => [
                 'current_page' => $rentals->currentPage(),
                 'per_page' => $rentals->perPage(),
