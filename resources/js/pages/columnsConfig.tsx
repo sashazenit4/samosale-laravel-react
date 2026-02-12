@@ -2,6 +2,7 @@ import { Button, Col, Row, Space, Tag } from 'antd';
 import dayjs from 'dayjs';
 
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { ArrowLeftRight, CircleCheck, Repeat2 } from 'lucide-react';
 
 import utc from 'dayjs/plugin/utc';
 
@@ -542,6 +543,7 @@ export const tariffColumns = (
 // resources/js/pages/payments/columns.tsx
 
 import 'dayjs/locale/ru';
+import { FilesIcon } from 'lucide-react';
 dayjs.locale('ru');
 
 interface PaymentRecord {
@@ -747,8 +749,37 @@ export const rentsColumns = (
         title: 'Велосипед',
         dataIndex: 'bike',
         key: 'bike',
-        width: 110,
-        render: (_: any, record: any) => record?.bike?.bike_number || '-',
+        render: (_: any, record: any) => (
+            <div>
+                <div
+                    style={{
+                        whiteSpace: 'normal',
+                        textAlign: 'left',
+                        height: '100% ',
+                        padding: 10,
+                    }}
+                >
+                    {record?.bike?.bike_number || '-'}
+                </div>
+                {record.status === 'active' && (
+                    <Button
+                        size="small"
+                        type="default"
+                        onClick={() => openBikeModal(record)}
+                        style={{
+                            whiteSpace: 'normal',
+                            textAlign: 'left',
+                            height: '100% ',
+                            paddingBlock: 4,
+                            fontSize: 10,
+                        }}
+                    >
+                        <ArrowLeftRight size="10" />
+                        Сменить велосипед
+                    </Button>
+                )}
+            </div>
+        ),
     },
     {
         title: 'АКБ',
@@ -791,13 +822,13 @@ export const rentsColumns = (
                             {t.program} {t.power}W
                         </strong>
                     </div>
-                    <div style={{ color: '#888', fontSize: '0.85em' }}>
+                    {/* <div style={{ color: '#888', fontSize: '0.85em' }}>
                         {Object.keys(labels).map((type) => (
                             <Tag color="default" style={{ margin: 0 }}>
                                 {labels[type]}: {price[type]}₽
                             </Tag>
                         ))}
-                    </div>
+                    </div> */}
                 </div>
             );
         },
@@ -831,10 +862,38 @@ export const rentsColumns = (
                 title: 'Оплата',
                 dataIndex: 'paid_status',
                 key: 'paid_status',
-                render: (v: string) => (
-                    <Tag color={v === 'paid' ? 'green' : 'red'}>
-                        {v === 'paid' ? 'Оплачено' : 'Не оплачено'}
-                    </Tag>
+                render: (v: string, record: any) => (
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 10,
+                        }}
+                    >
+                        <Tag
+                            style={{ width: 'fit-content' }}
+                            color={v === 'paid' ? 'green' : 'red'}
+                        >
+                            {v === 'paid' ? 'Оплачено' : 'Не оплачено'}
+                        </Tag>
+                        {v !== 'paid' && (
+                            <Button
+                                size="small"
+                                onClick={() => openPaidModal(record)}
+                                type="link"
+                                style={{
+                                    whiteSpace: 'normal',
+                                    textAlign: 'left',
+                                    height: '100% ',
+                                    paddingBlock: 4,
+                                    fontSize: 10,
+                                }}
+                            >
+                                <CircleCheck size="10" />
+                                Отметить как оплаченное
+                            </Button>
+                        )}
+                    </div>
                 ),
             },
         ],
@@ -878,11 +937,38 @@ export const rentsColumns = (
         render: (t: string | null) => t || '-',
     },
     {
+        title: 'Договор',
+        key: 'files',
+        width: 250,
+        render: (_: any, record: any) => (
+            <Row gutter={[0, 0]}>
+                <Col span={12}>
+                    <Button
+                        size="small"
+                        // type="primary"
+                        onClick={() => getDocument(record.id)}
+                    >
+                        <FilesIcon size="15" /> Договор
+                    </Button>
+                </Col>
+                <Col span={12}>
+                    <Button
+                        size="small"
+                        // type="primary"
+                        onClick={() => getDocumentPDF(record.id)}
+                    >
+                        <FilesIcon size="15" /> Договор PDF
+                    </Button>
+                </Col>
+            </Row>
+        ),
+    },
+    {
         key: 'actions',
         fixed: 'right' as const,
         width: 250,
         render: (_: any, record: any) => (
-            <Row gutter={[30, 30]}>
+            <Row gutter={[10, 10]}>
                 <Col span={6}>
                     {record.status === 'active' && (
                         <Button
@@ -893,24 +979,6 @@ export const rentsColumns = (
                         />
                     )}
                 </Col>
-                <Col span={18}>
-                    {record.status === 'active' && (
-                        <Button
-                            size="small"
-                            onClick={() => openPaidModal(record)}
-                            type="link"
-                            style={{
-                                whiteSpace: 'normal',
-                                textAlign: 'left',
-                                height: '100% ',
-                                paddingBlock: 4,
-                            }}
-                        >
-                            Отметить как оплаченное
-                        </Button>
-                    )}
-                </Col>
-
                 <Col span={6}>
                     <Button
                         size="small"
@@ -920,45 +988,17 @@ export const rentsColumns = (
                         onClick={() => openDelete(record)}
                     />
                 </Col>
-                <Col span={18}>
+                <Col span={12}>
                     {record.status === 'active' && (
                         <Button
                             size="small"
-                            type="link"
+                            type="default"
                             onClick={() => openExtend(record)}
                         >
+                            <Repeat2 size="15" />
                             Продлить
                         </Button>
                     )}
-                </Col>
-                <Col span={18}>
-                    {record.status === 'active' && (
-                        <Button
-                            size="small"
-                            type="link"
-                            onClick={() => openBikeModal(record)}
-                        >
-                            Сменить велосипед
-                        </Button>
-                    )}
-                </Col>
-                <Col span={12}>
-                    <Button
-                        size="small"
-                        type="link"
-                        onClick={() => getDocument(record.id)}
-                    >
-                        Договор
-                    </Button>
-                </Col>
-                <Col span={12}>
-                    <Button
-                        size="small"
-                        type="link"
-                        onClick={() => getDocumentPDF(record.id)}
-                    >
-                        Договор PDF
-                    </Button>
                 </Col>
             </Row>
         ),

@@ -124,7 +124,7 @@ const PaymentFormDrawer: React.FC<PaymentFormDrawerProps> = ({
                     <Select
                         showSearch
                         placeholder="Начните вводить ФИО или телефон"
-                        optionFilterProp="children"
+                        optionFilterProp="label"
                         options={clients.map((c) => ({
                             value: c.user_id,
                             label: `${
