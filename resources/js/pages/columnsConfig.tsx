@@ -782,21 +782,21 @@ export const rentsColumns = (
         ),
     },
     {
-        title: 'АКБ',
-        children: [
-            {
-                title: 'Емкость',
-                dataIndex: 'battery_capacity',
-                key: 'capacity',
-                render: (v: number | null) => (v ? `${v} Вт·ч` : '-'),
-            },
-            {
-                title: 'Кол-во',
-                dataIndex: 'batteries_count',
-                key: 'batteries_count',
-                render: (v: number) => v || '-',
-            },
-        ],
+        title: 'Договор',
+        key: 'files',
+        render: (_: any, record: any) => (
+            <Row gutter={[0, 0]}>
+                <Col span={12}>
+                    <Button
+                        size="small"
+                        // type="primary"
+                        onClick={() => getDocument(record.id)}
+                    >
+                        <FilesIcon size="15" /> Договор
+                    </Button>
+                </Col>
+            </Row>
+        ),
     },
     {
         title: 'Тариф',
@@ -937,20 +937,27 @@ export const rentsColumns = (
         render: (t: string | null) => t || '-',
     },
     {
-        title: 'Договор',
-        key: 'files',
-        width: 250,
+        title: 'АКБ',
+        children: [
+            {
+                title: 'Емкость',
+                dataIndex: 'battery_capacity',
+                key: 'capacity',
+                render: (v: number | null) => (v ? `${v} Вт·ч` : '-'),
+            },
+            {
+                title: 'Кол-во',
+                dataIndex: 'batteries_count',
+                key: 'batteries_count',
+                render: (v: number) => v || '-',
+            },
+        ],
+    },
+    {
+        title: 'Договор PDF',
+        key: 'files_pdf',
         render: (_: any, record: any) => (
             <Row gutter={[0, 0]}>
-                <Col span={12}>
-                    <Button
-                        size="small"
-                        // type="primary"
-                        onClick={() => getDocument(record.id)}
-                    >
-                        <FilesIcon size="15" /> Договор
-                    </Button>
-                </Col>
                 <Col span={12}>
                     <Button
                         size="small"
