@@ -29,89 +29,94 @@ class RentalController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-    {
-        $query = Rental::with(['client', 'bike', 'tariff', 'payments'])
-            ->orderBy('created_at', 'desc');
+{
+    $query = Rental::with(['client', 'bike', 'tariff', 'payments'])
+        ->orderBy('created_at', 'desc');
 
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->whereHas('client', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('phone_number', 'like', "%{$search}%")
-                      ->orWhereHas('customFields', function ($q2) use ($search) {
-                        $q2->where('field_value', 'like', "%{$search}%");
-                    });
-                })
-                ->orWhere('note', 'like', "%{$search}%");
+    if ($request->has('search') && $request->search) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            // Поиск по клиенту (ФИО и телефон)
+            $q->whereHas('client', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('phone_number', 'like', "%{$search}%")
+                  ->orWhereHas('customFields', function ($q2) use ($search) {
+                    $q2->where('field_value', 'like', "%{$search}%");
+                });
+            })
+            ->orWhereHas('bike', function ($q) use ($search) {
+                $q->where('bike_number', 'like', "%{$search}%");
+            })
+            // Поиск по примечанию
+            ->orWhere('note', 'like', "%{$search}%");
+        });
+    }
+
+    if ($request->has('client_id') && $request->client_id) {
+        $clientIds = explode(',', $request->client_id);
+        $query->whereIn('client_id', $clientIds);
+    }
+
+    if ($request->has('bike_id') && $request->bike_id) {
+        $bikeIds = explode(',', $request->bike_id);
+        $query->whereIn('bike_id', $bikeIds);
+    }
+
+    if ($request->has('tariff_id') && $request->tariff_id) {
+        $tariffIds = explode(',', $request->tariff_id);
+        $query->whereIn('tariff_id', $tariffIds);
+    }
+
+    if ($request->has('status') && $request->status) {
+        $statuses = explode(',', $request->status);
+        $query->whereIn('status', $statuses);
+    }
+
+    if ($request->has('paid_status') && $request->paid_status) {
+        $paidStatuses = explode(',', $request->paid_status);
+        $query->whereIn('paid_status', $paidStatuses);
+    }
+
+    if ($request->has('min_cost') && $request->min_cost) {
+        $query->where('total_cost', '>=', $request->min_cost);
+    }
+    
+    if ($request->has('max_cost') && $request->max_cost) {
+        $query->where('total_cost', '<=', $request->max_cost);
+    }
+
+    if ($request->has('start_date') && $request->start_date) {
+        $query->whereDate('start_date', '>=', $request->start_date);
+    }
+    
+    if ($request->has('end_date') && $request->end_date) {
+        $query->whereDate('start_date', '<=', $request->end_date);
+    }
+
+    if ($request->has('has_note')) {
+        if ($request->has_note === 'true') {
+            $query->whereNotNull('note')->where('note', '!=', '');
+        } elseif ($request->has_note === 'false') {
+            $query->where(function ($q) {
+                $q->whereNull('note')->orWhere('note', '');
             });
         }
-
-        if ($request->has('client_id') && $request->client_id) {
-            $clientIds = explode(',', $request->client_id);
-            $query->whereIn('client_id', $clientIds);
-        }
-
-        if ($request->has('bike_id') && $request->bike_id) {
-            $bikeIds = explode(',', $request->bike_id);
-            $query->whereIn('bike_id', $bikeIds);
-        }
-
-        if ($request->has('tariff_id') && $request->tariff_id) {
-            $tariffIds = explode(',', $request->tariff_id);
-            $query->whereIn('tariff_id', $tariffIds);
-        }
-
-        if ($request->has('status') && $request->status) {
-            $statuses = explode(',', $request->status);
-            $query->whereIn('status', $statuses);
-        }
-
-        if ($request->has('paid_status') && $request->paid_status) {
-            $paidStatuses = explode(',', $request->paid_status);
-            $query->whereIn('paid_status', $paidStatuses);
-        }
-
-        if ($request->has('min_cost') && $request->min_cost) {
-            $query->where('total_cost', '>=', $request->min_cost);
-        }
-        
-        if ($request->has('max_cost') && $request->max_cost) {
-            $query->where('total_cost', '<=', $request->max_cost);
-        }
-
-        if ($request->has('start_date') && $request->start_date) {
-            $query->whereDate('start_date', '>=', $request->start_date);
-        }
-        
-        if ($request->has('end_date') && $request->end_date) {
-            $query->whereDate('start_date', '<=', $request->end_date);
-        }
-
-        if ($request->has('has_note')) {
-            if ($request->has_note === 'true') {
-                $query->whereNotNull('note')->where('note', '!=', '');
-            } elseif ($request->has_note === 'false') {
-                $query->where(function ($q) {
-                    $q->whereNull('note')->orWhere('note', '');
-                });
-            }
-        }
-
-        $perPage = $request->get('per_page', 10);
-        $rentals = $query->paginate($perPage);
-
-        return response()->json([
-            'success' => true,
-            'data' => RentalResource::collection($rentals),
-            'meta' => [
-                'current_page' => $rentals->currentPage(),
-                'per_page' => $rentals->perPage(),
-                'total' => $rentals->total(),
-                'last_page' => $rentals->lastPage(),
-            ],
-        ]);
     }
+
+    $perPage = $request->get('per_page', 10);
+    $rentals = $query->paginate($perPage);
+
+    return response()->json([
+        'success' => true,
+        'data' => RentalResource::collection($rentals),
+        'meta' => [
+            'current_page' => $rentals->currentPage(),
+            'per_page' => $rentals->perPage(),
+            'total' => $rentals->total(),
+            'last_page' => $rentals->lastPage(),
+        ],
+    ]);
+}
 
     /**
      * Store a newly created resource in storage.

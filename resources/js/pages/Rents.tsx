@@ -709,6 +709,8 @@ export default function Rents() {
                                         >
                                             <Select
                                                 mode="multiple"
+                                                showSearch
+                                                optionFilterProp="label"
                                                 placeholder="Выберите велосипеды"
                                                 options={bikes_options.map(
                                                     (bike) => ({
