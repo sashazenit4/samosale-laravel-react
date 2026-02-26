@@ -45,6 +45,7 @@ class ClientController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'telegram_id' => 'integer|unique:clients,telegram_id',
+            'username' => 'nullable|unique:clients,username',
             'phone_number' => 'required|string|max:32|unique:clients,phone_number',
             'name' => 'nullable|string|max:255',
             'referral_code' => 'sometimes|string|max:32|unique:clients,referral_code',
@@ -400,6 +401,7 @@ class ClientController extends Controller
             'phone_number' => 'required|string|max:32',
             'telegram_id' => 'int',
             'name' => 'string|max:32',
+            'username' => 'nullable|unique:clients,username',
         ]);
 
         if ($validator->fails()) {
@@ -424,6 +426,7 @@ class ClientController extends Controller
             $client->update([
                 'telegram_id' => $request->telegram_id,
                 'name' => $request['name'],
+                'username' => $request['username'],
             ]);
             $result['user'] = $client;
         }

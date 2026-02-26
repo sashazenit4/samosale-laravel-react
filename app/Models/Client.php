@@ -39,6 +39,7 @@ class Client extends Model
      */
     protected $fillable = [
         'telegram_id',
+        'username',
         'phone_number',
         'name',
         'registration_date',
