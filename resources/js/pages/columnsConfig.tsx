@@ -69,6 +69,7 @@ export const clientsColumns = (
         },
     },
     { title: 'Телефон', dataIndex: 'phone_number', key: 'phone_number' },
+    { title: 'TG', dataIndex: 'username', key: 'username' },
     {
         title: 'Доп. телефон',
         dataIndex: 'custom_fields',
