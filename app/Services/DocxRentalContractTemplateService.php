@@ -112,6 +112,10 @@ class DocxRentalContractTemplateService
             'Аккумулятор электровелосипеда' => $batteryInfo,
             'Начало пользования' => $startDate,
             'Конец пользования' => $endDate,
+            'Модель' => $bikeInfo->property_1 ?? '',
+            'Вес' => $bikeInfo->property_4 ?? '',
+            'Максимальная нагрузка' => $bikeInfo->property_2 ?? '',
+            'Размер колес' => $bikeInfo->property_3 ?? '',
         ];
     }
 
