@@ -493,6 +493,7 @@ class ClientController extends Controller
                 'client' => $clientData,
                 'bike' => $activeRental?->bike,
                 'tariff' => $activeRental?->tariff,
+                'paid_status' => $activeRental?->paid_status,
             ]);
 
         } catch (\Exception $e) {
