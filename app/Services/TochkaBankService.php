@@ -4,6 +4,7 @@
 namespace App\Services;
 
 use App\Models\BankConfiguration;
+use App\Models\Client;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -11,13 +12,25 @@ use Illuminate\Support\Facades\Log;
 class TochkaBankService
 {
     private const QR_CODE_TTL = 15;
+
+    /**
+     * Точка Банк использует сертификат, выданный Минцифры РФ (Russian Trusted Root CA),
+     * которого нет в стандартных CA-бандлах (Mozilla/системных на не-российских машинах).
+     * Поэтому для запросов к банку используем собственный бандл с этим корневым сертификатом.
+     */
+    private const CA_BUNDLE_PATH = 'certs/tochka-ca-bundle.pem';
+
     private BankConfiguration $config;
 
-    public function __construct(string $environment = 'sandbox')
+    public function __construct(?string $environment = null)
     {
-        $this->config = BankConfiguration::active()
-            ->environment($environment)
-            ->firstOrFail();
+        $query = BankConfiguration::active();
+
+        if ($environment !== null) {
+            $query->environment($environment);
+        }
+
+        $this->config = $query->firstOrFail();
 
         if (!$this->config->isTokenValid()) {
             throw new \Exception('Недействительный JWT токен для банковской конфигурации');
@@ -26,6 +39,16 @@ class TochkaBankService
         if (!$this->config->isComplete()) {
             throw new \Exception('Банковская конфигурация неполная. Заполните все обязательные поля.');
         }
+    }
+
+    /**
+     * HTTP-клиент с доверием к CA-сертификату банка
+     */
+    private function httpClient()
+    {
+        return Http::withOptions([
+            'verify' => storage_path(self::CA_BUNDLE_PATH),
+        ]);
     }
 
     /**
@@ -59,7 +82,7 @@ class TochkaBankService
         ]);
 
         try {
-            $response = Http::withHeaders([
+            $response = $this->httpClient()->withHeaders([
                 'Authorization' => 'Bearer ' . $this->config->jwt_token,
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
@@ -164,6 +187,128 @@ class TochkaBankService
     }
 
     /**
+     * Назначение платежа для статического QR: ФИО, телефон и ИД курьера клиента.
+     */
+    private function buildPaymentPurpose(Client $client): string
+    {
+        $fullName = $client->full_name ?: ($client->name ?: "Клиент #{$client->user_id}");
+
+        $courierId = $client->getCustomFieldValue('courier_id')
+            ?: sprintf('%s-%d', env('APP_CLIENT_PREFIX', 'КС'), $client->user_id);
+
+        $purpose = implode(', ', array_filter([
+            $fullName,
+            $client->phone_number,
+            $courierId,
+        ]));
+
+        // Ограничение НСПК на длину назначения платежа
+        return mb_substr($purpose, 0, 140);
+    }
+
+    /**
+     * Создание статического QR-кода клиента для оплаты (qrcType 01).
+     * В отличие от createQrCode(), не привязан к конкретной транзакции/сумме
+     * и не имеет срока действия — создаётся один раз при регистрации клиента.
+     */
+    public function createStaticQrCode(Client $client): array
+    {
+        $requestData = [
+            'Data' => [
+                'merchantId' => $this->config->merchant_id,
+                'legalId' => $this->config->legal_id,
+                'customerCode' => $this->config->customer_code,
+                'currency' => 'RUB',
+                'paymentPurpose' => $this->buildPaymentPurpose($client),
+                'qrcType' => '01',
+                'imageParams' => [
+                    'width' => 200,
+                    'height' => 200,
+                    'mediaType' => 'image/png'
+                ],
+            ]
+        ];
+
+        Log::info('Tochka Bank Static QR Code Request', [
+            'client_id' => $client->user_id,
+            'url' => $this->config->getQrCodeUrl(),
+            'request_data' => $requestData
+        ]);
+
+        try {
+            $response = $this->httpClient()->withHeaders([
+                'Authorization' => 'Bearer ' . $this->config->jwt_token,
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ])
+                ->timeout(config('services.tochka.timeout', 30))
+                ->retry(
+                    config('services.tochka.retry_times', 3),
+                    config('services.tochka.retry_sleep', 100)
+                )
+                ->post($this->config->getQrCodeUrl(), $requestData);
+
+            $responseData = $response->json();
+
+            Log::info('Tochka Bank Static QR Code Response', [
+                'client_id' => $client->user_id,
+                'status' => $response->status(),
+                'response' => $responseData
+            ]);
+
+            if (!$responseData) {
+                Log::error('Tochka Bank API returned empty response for static QR code');
+                return [
+                    'success' => false,
+                    'error' => 'Банк вернул пустой ответ',
+                    'code' => 500,
+                ];
+            }
+
+            if ($response->successful() && isset($responseData['Data']['qrcId'])) {
+                return [
+                    'success' => true,
+                    'qr_code_id' => $responseData['Data']['qrcId'],
+                    'qr_code_url' => $responseData['Data']['payload'] ?? null,
+                    'image_data' => $responseData['Data']['image'] ?? null,
+                    'response' => $responseData,
+                ];
+            }
+
+            $errorMessage = $responseData['ErrorMessage']
+                ?? $responseData['error']
+                ?? $responseData['message']
+                ?? (is_string($responseData) ? $responseData : 'Unknown error from bank API');
+
+            Log::error('Tochka Bank Static QR Code Error', [
+                'client_id' => $client->user_id,
+                'status' => $response->status(),
+                'error' => $errorMessage,
+                'response' => $responseData,
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $errorMessage,
+                'code' => $response->status(),
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Tochka Bank Static QR Code Exception', [
+                'client_id' => $client->user_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'code' => 500,
+            ];
+        }
+    }
+
+    /**
      * Проверка статуса платежа по QR-коду
      * Новый метод согласно документации API
      */
@@ -178,7 +323,7 @@ class TochkaBankService
                 'url' => $url
             ]);
 
-            $response = Http::withHeaders([
+            $response = $this->httpClient()->withHeaders([
                 'Authorization' => 'Bearer ' . $this->config->jwt_token,
                 'Accept' => 'application/json',
             ])
@@ -262,7 +407,7 @@ class TochkaBankService
                 'url' => $url
             ]);
 
-            $response = Http::withHeaders([
+            $response = $this->httpClient()->withHeaders([
                 'Authorization' => 'Bearer ' . $this->config->jwt_token,
                 'Accept' => 'application/json',
             ])
@@ -345,7 +490,7 @@ class TochkaBankService
     public function getMerchantInfo(): array
     {
         try {
-            $response = Http::withHeaders([
+            $response = $this->httpClient()->withHeaders([
                 'Authorization' => 'Bearer ' . $this->config->jwt_token,
                 'Accept' => 'application/json',
             ])

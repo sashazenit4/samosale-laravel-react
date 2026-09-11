@@ -26,7 +26,7 @@ class BankConfigurationSeeder extends Seeder
             'contact_phone' => '+79991234567',
             'city' => 'Самара',
             'country_code' => 'RU',
-            'is_active' => true,
+            'is_active' => false,
         ]);
 
         // Production конфигурация

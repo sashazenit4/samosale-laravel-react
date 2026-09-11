@@ -51,6 +51,10 @@ class Client extends Model
         'is_loyalty_member',
         'loyalty_level',
         'total_spent',
+        'qr_code_id',
+        'qr_code_url',
+        'qr_code_image',
+        'qr_code_image_media_type',
     ];
 
     /**
@@ -120,6 +124,16 @@ class Client extends Model
     public function getCustomField(string $fieldName): ?string
     {
         $field = $this->customFields()->where('field_name', $fieldName)->first();
+        return $field ? $field->field_value : null;
+    }
+
+    /**
+     * Get custom field value, reusing the loaded customFields relation if present
+     * (lazy-loads it otherwise) to avoid a query per field.
+     */
+    public function getCustomFieldValue(string $fieldName): ?string
+    {
+        $field = $this->customFields->firstWhere('field_name', $fieldName);
         return $field ? $field->field_value : null;
     }
 
@@ -256,10 +270,6 @@ class Client extends Model
     // Получить полное имя из кастомных полей
     public function getFullNameAttribute()
     {
-        if (!$this->relationLoaded('customFields')) {
-            return $this->name;
-        }
-
         $lastName = $this->getCustomFieldValue('last_name');
         $firstName = $this->getCustomFieldValue('first_name');
         $middleName = $this->getCustomFieldValue('middle_name');
