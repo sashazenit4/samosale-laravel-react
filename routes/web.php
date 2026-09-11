@@ -10,6 +10,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\BonusSystemConfigController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\TransactionExportController;
+use App\Http\Controllers\PaymentExportController;
 
 
 use Illuminate\Http\Request;
@@ -388,4 +389,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/export/{table}', [ExportController::class, 'exportTable'])->name('export.table');
     Route::get('/transactions/export/direct', [TransactionExportController::class, 'directExport'])
         ->name('transactions.export.direct');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/payments/export/direct', [PaymentExportController::class, 'directExport'])
+        ->name('payments.export.direct');
 });

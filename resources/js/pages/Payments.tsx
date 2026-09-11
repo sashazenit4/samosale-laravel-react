@@ -99,7 +99,7 @@ export default function Payments() {
 
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '/export/payments';
+        form.action = '/payments/export/direct';
         form.target = '_blank';
         form.style.display = 'none';
 
