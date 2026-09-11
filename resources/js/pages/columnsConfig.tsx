@@ -1,4 +1,4 @@
-import { Button, Col, Row, Space, Tag } from 'antd';
+import { Button, Col, Row, Space, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
@@ -232,6 +232,27 @@ export const clientsColumns = (
         title: 'Бонусный баланс',
         dataIndex: 'bonus_balance',
         key: 'bonus_balance',
+    },
+    {
+        title: 'QR-код оплаты',
+        dataIndex: 'qr_code_url',
+        key: 'qr_code_url',
+        width: 200,
+        render: (value: string | null) =>
+            value ? (
+                <Typography.Text
+                    style={{ maxWidth: 170 }}
+                    ellipsis={{ tooltip: value }}
+                    copyable={{
+                        text: value,
+                        tooltips: ['Скопировать ссылку', 'Ссылка скопирована'],
+                    }}
+                >
+                    {value}
+                </Typography.Text>
+            ) : (
+                <Tag color="blue">Не сгенерирован</Tag>
+            ),
     },
     {
         title: 'Действия',

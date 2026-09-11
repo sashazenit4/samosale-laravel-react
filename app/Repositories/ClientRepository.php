@@ -10,8 +10,10 @@ use App\Models\ReferralInvite;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use App\Services\CustomFieldValidationService;
+use App\Services\TochkaBankService;
 use App\Models\CustomFieldTemplate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ClientRepository
 {
@@ -93,8 +95,56 @@ class ClientRepository
 
             $this->accrueRegistrationBonuses($client);
 
-            return $client->load('customFields', 'referrer', 'referrals');
+            $client->load('customFields', 'referrer', 'referrals');
+            $this->generateStaticQrCode($client);
+
+            return $client;
         });
+    }
+
+    /**
+     * Сгенерировать статический QR-код клиента для оплаты через банк.
+     * Ошибка генерации не должна прерывать создание клиента.
+     * Используется как при создании клиента, так и при бэкфилле (см. clients:generate-static-qr).
+     */
+    public function generateStaticQrCode(Client $client): bool
+    {
+        try {
+            $bankService = new TochkaBankService();
+            $result = $bankService->createStaticQrCode($client);
+
+            if (!($result['success'] ?? false)) {
+                Log::warning('Failed to generate static QR code for client', [
+                    'client_id' => $client->user_id,
+                    'error' => $result['error'] ?? 'unknown error',
+                ]);
+                return false;
+            }
+
+            $updateData = [
+                'qr_code_id' => $result['qr_code_id'] ?? null,
+                'qr_code_url' => $result['qr_code_url'] ?? null,
+            ];
+
+            if (isset($result['image_data']['content'])) {
+                $updateData['qr_code_image'] = $result['image_data']['content'];
+            }
+
+            if (isset($result['image_data']['mediaType'])) {
+                $updateData['qr_code_image_media_type'] = $result['image_data']['mediaType'];
+            }
+
+            $client->update($updateData);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Static QR code generation failed for client', [
+                'client_id' => $client->user_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
     }
 
     /**
