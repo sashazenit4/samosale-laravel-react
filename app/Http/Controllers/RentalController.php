@@ -15,6 +15,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+
 
 class RentalController extends Controller
 {
@@ -148,6 +150,7 @@ class RentalController extends Controller
             // Проверяем, что байк свободен
             $bike = Bike::find($request->bike_id);
             if ($bike->status !== 'free') {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Bike is not available for rental'
@@ -183,8 +186,9 @@ class RentalController extends Controller
                 'data' => new RentalResource($rental->load(['client', 'bike', 'tariff']))
             ], 201);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Failed to create rental: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create rental',
@@ -203,7 +207,8 @@ class RentalController extends Controller
                 'success' => true,
                 'data' => new RentalResource($rental->load(['client', 'bike', 'tariff']))
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Failed to retrieve rental: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve rental',
@@ -396,8 +401,9 @@ class RentalController extends Controller
                 'data' => new RentalResource($rental->load(['client', 'bike', 'tariff', 'payments']))
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Failed to update rental: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update rental',
@@ -426,7 +432,8 @@ class RentalController extends Controller
                 'message' => 'Rental deleted successfully'
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Failed to delete rental: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete rental',
@@ -468,8 +475,9 @@ class RentalController extends Controller
                 'data' => new RentalResource($rental->load(['client', 'bike', 'tariff']))
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Failed to complete rental: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to complete rental',
@@ -550,8 +558,9 @@ class RentalController extends Controller
                 'data' => new RentalResource($rental->load(['client', 'bike', 'tariff']))
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Failed to complete rental early: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to complete rental early',
@@ -660,8 +669,9 @@ class RentalController extends Controller
                 ]
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Failed to cancel rental with bike change: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to cancel rental with bike change',
@@ -691,8 +701,9 @@ class RentalController extends Controller
                 'data' => new RentalResource($rental->load(['client', 'bike', 'tariff']))
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
+            Log::error('Failed to mark rental as paid: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to mark rental as paid',
@@ -734,7 +745,8 @@ class RentalController extends Controller
                 'data' => $calculation
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Failed to calculate price: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to calculate price',
@@ -753,6 +765,8 @@ class RentalController extends Controller
         $endDate = Carbon::parse($rental->planned_end_date);
         $purpose = 'Услуги проката';
 
+        $client = Client::find($rental->client_id);
+
         // Получаем детальный расчет стоимости из сервиса
         $priceCalculation = $this->rentalPriceService->calculateRentalPrice(
             $tariff,
@@ -762,6 +776,7 @@ class RentalController extends Controller
 
         $payments = [];
         $currentDate = $startDate->copy();
+        $full_name = $this->getClientFullName($client);
 
         // Создаем платежи на основе breakdown
         $paymentDate = $currentDate;
@@ -774,7 +789,8 @@ class RentalController extends Controller
                     'status' => 'unpaid',
                     'payment_type' => 'cashless',
                     'article' => 'bike_rental',
-                    'purpose' => "{$purpose} - {$period['description']}",
+                    'purpose' => "{$purpose} - {$period['description']} - {$full_name}, {$client->phone_number}, КС-{$client->user_id}",
+                    //'purpose' => "{$purpose} - {$period['description']}",
                     'rental_id' => $rental->id,
                     'year' => $currentDate->year,
                     'month' => strtolower($currentDate->englishMonth),
@@ -799,6 +815,21 @@ class RentalController extends Controller
         $this->adjustPaymentAmounts($rental, $payments);
 
         return $payments;
+    }
+
+    private function getClientFullName($client): string
+    {
+        if (!$client->relationLoaded('customFields')) {
+            $client->load('customFields');
+        }
+
+        $lastName = $client->getCustomField('last_name');
+        $firstName = $client->getCustomField('first_name');
+        $middleName = $client->getCustomField('middle_name');
+
+        $parts = array_filter([$lastName, $firstName, $middleName]);
+
+        return !empty($parts) ? implode(' ', $parts) : ($client->name ?? 'Не указано');
     }
 
     /**
