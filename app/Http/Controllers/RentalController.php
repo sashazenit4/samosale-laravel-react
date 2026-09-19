@@ -225,6 +225,8 @@ class RentalController extends Controller
         $tariff = $rental->tariff;
         $newEndDate = Carbon::parse($rental->planned_end_date);
         $purpose = 'Услуги проката';
+        $client = Client::find($rental->client_id);
+        $full_name = $this->getClientFullName($client);
 
         // Вычисляем разницу в днях между старой и новой датой окончания
         $extensionDays = $oldEndDate->diffInDays($newEndDate);
@@ -256,7 +258,8 @@ class RentalController extends Controller
                     'status' => 'unpaid',
                     'payment_type' => 'cashless',
                     'article' => 'bike_rental',
-                    'purpose' => "{$purpose} - {$period['description']} (продление)",
+                    // 'purpose' => "{$purpose} - {$period['description']} ",
+                    'purpose' => "{$purpose} - {$period['description']} (продление) - {$full_name}, {$client->phone_number}, КС-{$client->user_id}",
                     'rental_id' => $rental->id,
                     'year' => $currentDate->year,
                     'month' => strtolower($currentDate->englishMonth),
